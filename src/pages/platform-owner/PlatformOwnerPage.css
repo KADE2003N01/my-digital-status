@@ -23,18 +23,41 @@
 .owner-sidebar-nav > a, .owner-sidebar-disabled { display: flex; align-items: center; gap: 11px; min-height: 42px; padding: 0 11px; border: 1px solid transparent; border-radius: 9px; color: #61718a; font-size: 12px; font-weight: 650; text-decoration: none; white-space: nowrap; }
 .owner-sidebar-nav > a i, .owner-sidebar-disabled i { width: 17px; color: #8493aa; text-align: center; font-size: 11px; }
 .owner-sidebar-count { display: inline-grid; min-width: 21px; height: 20px; margin-left: auto; padding: 0 6px; place-items: center; border-radius: 999px; background: #eef2f7; color: #61718a; font-size: 10px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.owner-sidebar-count.owner-sidebar-alert { background: #fff0ee; color: #bd3c36; }
+.owner-sidebar-count.owner-sidebar-alert.has-new { background: #e34757; color: #fff; }
 .owner-sidebar-nav > a.is-current .owner-sidebar-count { background: #dce6ff; color: #315fe9; }
 .owner-sidebar-message-count { display: flex; align-items: center; justify-content: center; gap: 7px; min-width: 62px; padding: 0 7px; }
 .owner-sidebar-message-count > span { display: inline-flex; align-items: center; gap: 2px; }
 .owner-sidebar-message-count i { font-size: 8px; }
 .owner-sidebar-unread-badge { display: inline-grid; min-width: 18px; height: 18px; margin-left: 5px; padding: 0 4px; place-items: center; border-radius: 999px; background: #e34757; color: #fff; font-size: 9px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.owner-sidebar-message-count + .owner-sidebar-unread-badge { box-shadow: 0 0 0 2px #fff; }
+.owner-rail-collapsed .owner-sidebar-nav > a > .owner-sidebar-alert { position: absolute; top: 3px; right: 4px; display: inline-grid; min-width: 15px; height: 15px; margin: 0; padding: 0 3px; font-size: 8px; }
 .owner-sidebar-nav > a:hover { background: #f5f7fc; color: var(--owner-blue); }
 .owner-sidebar-nav > a.is-current { border-color: #dce6ff; background: #edf2ff; color: var(--owner-blue); box-shadow: inset 3px 0 #4168ed; }
 .owner-sidebar-nav > a.is-current i { color: var(--owner-blue); }
+.owner-sidebar-nav > a.owner-super-overview i,
+.owner-sidebar-nav > a.owner-super-overview.is-current i { color: #159447; font-weight: 900; }
 .owner-sidebar-disabled { color: #a1aabb; cursor: default; }
 .owner-sidebar-disabled i { color: #b0bac8; }
 .owner-sidebar-signout { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; margin-top: auto; padding: 0 9px; border: 1px solid #f1dddd; border-radius: 8px; background: #fffafa; color: #a24d52; font-size: 11px; font-weight: 700; text-align: left; cursor: pointer; }
 .owner-sidebar-signout:hover { border-color: #e7c8c8; background: #fff5f4; }
+.owner-account-menu { position: relative; display: flex; width: 100%; justify-content: flex-end; margin-top: auto; }
+.owner-account-menu .owner-sidebar-signout { width: 36px; min-width: 36px; height: 36px; min-height: 36px; margin: 0 0 4px; padding: 0; justify-content: center; font-size: 0; }
+.owner-account-menu .owner-sidebar-signout .logout-action-icon { width: 18px; height: 18px; flex-basis: 18px; font-size: 14px; }
+.owner-account-menu .owner-sidebar-signout:focus-visible { outline: 3px solid #315fe94a; outline-offset: 2px; }
+.owner-account-menu-panel { position: fixed; z-index: 1600; display: grid; width: min(280px, calc(100vw - 24px)); max-height: calc(100vh - 24px); gap: 10px; overflow-y: auto; padding: 12px; border: 1px solid #dfe7f2; border-radius: 12px; background: #fff; color: #182943; box-shadow: 0 16px 40px #14223c35; }
+.owner-account-menu-profile { display: flex; min-width: 0; align-items: center; gap: 10px; padding: 2px 2px 10px; border-bottom: 1px solid #e4e8ef; }
+.owner-account-menu-profile > .owner-account-avatar { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; border-radius: 50%; background: #e9f0ff; color: #315fe9; font-size: 12px; font-weight: 800; }
+.owner-account-menu-profile > span:last-child { display: grid; min-width: 0; gap: 3px; }
+.owner-account-menu-profile strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.owner-account-menu-profile small { overflow-wrap: anywhere; color: #738198; font-size: 11px; }
+.owner-account-menu-logout { display: flex; min-height: 36px; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid #efc9c9; border-radius: 8px; background: #fff7f7; color: #a73737; font-size: 12px; font-weight: 750; text-align: left; cursor: pointer; }
+.owner-account-menu-logout:hover { border-color: #dc2626; background: #dc2626; color: #fff; }
+.owner-page[data-theme="dark"] .owner-account-menu-panel { border-color: #2b3850; background: #131b2c; color: #e2e8f0; }
+.owner-page[data-theme="dark"] .owner-account-menu-profile { border-color: #2b3850; }
+.owner-page[data-theme="dark"] .owner-account-menu-profile small { color: #9fb0c9; }
+.owner-page[data-theme="dark"] .owner-account-menu-profile > .owner-account-avatar { background: #1a2440; color: #b9c8ff; }
+.owner-page[data-theme="dark"] .owner-account-menu-logout { border-color: #3b2730; background: #1d1518; color: #cf8389; }
 .owner-main { width: min(100%, 1240px); height: 100vh; min-width: 0; margin: 0 auto; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-color: #c7d3e6 transparent; scrollbar-width: thin; padding: 0 28px 44px; }
 .owner-main::-webkit-scrollbar { width: 8px; }.owner-main::-webkit-scrollbar-thumb { border-radius: 8px; background: #c7d3e6; }
 .owner-loading { display: grid; place-items: center; color: var(--owner-muted); }
@@ -69,6 +92,10 @@
 .owner-role-dropdown > summary::-webkit-details-marker { display: none; }
 .owner-role-dropdown > summary:hover { border-color: #a9bcf7; color: #315ce8; }
 .owner-role-dropdown-panel { position: absolute; z-index: 10; top: calc(100% + 5px); left: 0; width: 235px; display: grid; gap: 9px; padding: 10px; border: 1px solid #dce4ef; border-radius: 10px; background: #fff; box-shadow: 0 12px 28px #1c31531c; }
+.owner-role-view-dropdown { min-width: 100px; }
+.owner-role-view-dropdown > summary { min-height: 29px; padding: 6px 8px; font-size: 10px; }
+.owner-role-view-dropdown .owner-role-dropdown-panel { position: fixed; z-index: 1500; top: var(--owner-role-menu-top, 12px); left: var(--owner-role-menu-left, 12px); width: min(235px, calc(100vw - 24px)); max-height: min(260px, calc(100vh - 24px)); overflow: auto; }
+.owner-page[data-theme="dark"] .owner-role-view-dropdown .owner-role-dropdown-panel { border-color: #2c3a52; background: #131b2c; }
 .owner-role-badges { display: flex; flex-wrap: wrap; gap: 4px; max-width: 230px; }
 .owner-role-badges span { padding: 4px 7px; border: 1px solid #e4eaf3; border-radius: 999px; background: #f7f9fc; color: #5d6c82; font-size: 9px; font-weight: 700; white-space: nowrap; }
 .owner-role-badges span.is-super-admin { border-color: #d5e0ff; background: #edf2ff; color: #345ce4; }
@@ -298,7 +325,7 @@
 .owner-message-admin-copy small { overflow: hidden; color: #8b98ac; font-size: 9.5px; text-overflow: ellipsis; white-space: nowrap; }
 .owner-message-status { flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; }
 .owner-message-status.active { background: #2fa36a; }
-.owner-message-status.inactive { background: #b3bccb; }
+.owner-message-status.inactive { background: #d94444; box-shadow: 0 0 0 2px #d9444422; }
 .owner-message-status.pending { background: #e0a63c; }
 .owner-message-empty-state { margin: 3px 0; color: #8b98ac; font-size: 10.5px; }
 .owner-message-admin-list { display: flex; flex-direction: column; gap: 4px; flex: 1; min-height: 0; overflow-y: auto; padding-right: 3px; scrollbar-width: thin; scrollbar-gutter: stable; }
@@ -510,6 +537,7 @@
 .owner-page[data-theme="dark"] .owner-sidebar-disabled { color: #9fb0c9; }
 .owner-page[data-theme="dark"] .owner-sidebar-nav > a i,
 .owner-page[data-theme="dark"] .owner-sidebar-disabled i { color: #7d8ca6; }
+.owner-page[data-theme="dark"] .owner-sidebar-nav > a.owner-super-overview i { color: #42c878; }
 .owner-page[data-theme="dark"] .owner-sidebar-nav > a:hover { background: #1a2438; color: #c3d2ff; }
 .owner-page[data-theme="dark"] .owner-sidebar-nav > a.is-current { border-color: #2e3d63; background: #1a2440; color: #b9c8ff; box-shadow: inset 3px 0 #5d7df1; }
 .owner-page[data-theme="dark"] .owner-sidebar-count { background: #1d2739; color: #9fb0c9; }
@@ -909,6 +937,38 @@
 }
 .owner-page[data-theme="dark"] .owner-message-admin.is-active { border-color: #25d366; background: #123528; box-shadow: inset 3px 0 #25d366; }
 .owner-page[data-theme="dark"] .owner-message-avatar { background: #128c7e; }
+
+/* Keep conversation actions tucked away until requested, with larger mobile targets. */
+.owner-messages-page .owner-message-controls { position: relative; }
+.owner-messages-page .owner-message-more-actions { position: relative; margin-left: auto; }
+.owner-messages-page .owner-message-more-actions > summary { display: grid; width: 30px; height: 30px; place-items: center; border: 1px solid #d9e6df; border-radius: 8px; background: #fff; color: #52627c; list-style: none; cursor: pointer; }
+.owner-messages-page .owner-message-bulk-actions .owner-message-more-actions > summary { display: inline-flex; width: auto; min-height: 32px; padding: 5px 9px; gap: 6px; font-size: 10px; font-weight: 700; }
+.owner-messages-page .owner-message-more-actions > summary::-webkit-details-marker { display: none; }
+.owner-messages-page .owner-message-more-actions[open] > summary { border-color: #25d366; color: #0f7a45; }
+.owner-messages-page .owner-message-more-actions > div[role="menu"] { position: fixed; z-index: 1200; top: var(--message-menu-top, 12px); left: var(--message-menu-left, 12px); display: grid; width: min(190px, calc(100vw - 24px)); gap: 3px; padding: 5px; border: 1px solid #d9e6df; border-radius: 9px; background: #fff; box-shadow: 0 8px 24px #20385a24; }
+.owner-messages-page .owner-message-more-actions > div[role="menu"] button { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 7px 9px; border: 0; border-radius: 6px; background: transparent; color: #42536b; font-size: 11px; text-align: left; cursor: pointer; }
+.owner-messages-page .owner-message-more-actions > div[role="menu"] button:hover:not(:disabled) { background: #f2f8f4; color: #0f7a45; }
+.owner-messages-page .owner-message-more-actions > div[role="menu"] button.owner-message-clear-permanent { color: #a23838; }
+.owner-messages-page .owner-message-more-actions > div[role="menu"] button:disabled { opacity: .5; cursor: not-allowed; }
+.owner-message-mobile-back { display: none; }
+.owner-page[data-theme="dark"] .owner-message-more-actions > summary { border-color: #2c3a52; background: #16203a; color: #9fb0c9; }
+.owner-page[data-theme="dark"] .owner-message-more-actions > div[role="menu"] { border-color: #2c3a52; background: #131b2c; }
+.owner-page[data-theme="dark"] .owner-message-more-actions > div[role="menu"] button { color: #b9c4d8; }
+.owner-page[data-theme="dark"] .owner-message-more-actions > div[role="menu"] button:hover:not(:disabled) { background: #123528; color: #5bc489; }
+
+@media (max-width: 860px) {
+  .owner-messages-page .owner-muted-admins-panel { position: fixed; z-index: 1200; top: max(12px, env(safe-area-inset-top)); right: 12px; left: 12px; bottom: auto; width: auto; max-width: 420px; max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); margin-left: auto; }
+  .owner-messages-page .owner-message-layout.is-mobile-chat-open .owner-message-admins { display: none; }
+  .owner-messages-page .owner-message-layout:not(.is-mobile-chat-open) .owner-message-workspace { display: none; }
+  .owner-messages-page .owner-message-mobile-back { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 6px 10px; border: 1px solid #d9e6df; border-radius: 8px; background: #fff; color: #0f7a45; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .owner-messages-page .owner-message-history { max-height: min(52vh, 520px); min-height: 220px; }
+  .owner-messages-page .owner-message-bubble { max-width: 90%; padding: 9px 11px; font-size: 13px; }
+  .owner-messages-page .owner-message-bubble small { font-size: 10px; }
+  .owner-messages-page .owner-message-more-actions > summary { width: 38px; height: 38px; }
+  .owner-messages-page .owner-message-more-actions > div[role="menu"] button { min-height: 42px; font-size: 13px; }
+  .owner-messages-page .owner-message-bulk-actions { gap: 8px; }
+  .owner-messages-page .owner-message-bulk-actions button { min-height: 38px; padding: 7px 10px; font-size: 11px; }
+}
 
 @media (max-width: 860px) {
   .owner-tools-button span { display: none; }

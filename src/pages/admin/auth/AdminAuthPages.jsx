@@ -8,11 +8,13 @@ import './AdminAuthPages.css';
 
 const allowedDestinations = new Set([
   'admin.html', 'admin-downloads.html', 'admin-homepage.html', 'admin-documents.html',
-  'admin-profile.html', 'admin-accounts.html', 'platform-owner.html'
+  'admin-profile.html', 'admin-accounts.html', 'admin-messages.html', 'platform-owner.html'
 ]);
 
-function loginDestination() {
-  const requested = new URLSearchParams(window.location.search).get('next');
+function loginDestination(requested) {
+  // Sign-in always opens the regular workspace first. Super-admins can enter
+  // the owner console explicitly from its sidebar link after signing in.
+  if (requested === 'platform-owner.html') return 'admin.html';
   return allowedDestinations.has(requested) ? requested : 'admin.html';
 }
 
@@ -23,7 +25,7 @@ function AuthFeedback({ children, error = false }) {
 export function AdminLoginPage() {
   const { t } = useLanguage();
   const forceSignIn = new URLSearchParams(window.location.search).get('force') === '1';
-  const destination = loginDestination();
+  const requestedDestination = new URLSearchParams(window.location.search).get('next');
   const [clearingSession, setClearingSession] = useState(forceSignIn);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -52,7 +54,9 @@ export function AdminLoginPage() {
       credentials: 'include',
       headers: getStoredSessionToken() ? { Authorization: `Bearer ${getStoredSessionToken()}` } : undefined
     }).then(async response => {
-      if (response.ok && current) { window.location.replace(destination); return; }
+      if (response.ok && current) {
+        window.location.replace(loginDestination(requestedDestination)); return;
+      }
       if (response.status === 401) storeSessionToken('');
       else if (current) {
         const result = await response.json().catch(() => ({}));
@@ -62,7 +66,7 @@ export function AdminLoginPage() {
       if (current) { setFeedback('The sign-in service could not be reached. Check your connection and try again.'); setIsError(true); }
     });
     return () => { current = false; };
-  }, [destination, forceSignIn]);
+  }, [requestedDestination, forceSignIn]);
 
   async function submit(event) {
     event.preventDefault(); setSubmitting(true); setFeedback(''); setIsError(false);
@@ -82,7 +86,7 @@ export function AdminLoginPage() {
         storeSessionToken('');
         throw new Error('Your browser could not verify the new session. Allow cookies for this site and try again.');
       }
-      window.location.replace(destination);
+      window.location.replace(loginDestination(requestedDestination));
     } catch (error) { setFeedback(t(error.message || 'Could not sign in. Please try again.')); setIsError(true); }
     finally { setSubmitting(false); }
   }

@@ -18,6 +18,7 @@ const pageTitles = {
   'admin-documents.html': 'Documents | Portfolio Admin',
   'admin-profile.html': 'My Profile | Portfolio Admin',
   'admin-accounts.html': 'Admin Directory | Portfolio Admin',
+  'admin-messages.html': 'Messages | Portfolio Admin',
   'platform-owner.html': 'Super Admin Portal | Portfolio Admin',
   'admin-reset-password.html': 'Reset Admin Password | Portfolio Admin'
 };

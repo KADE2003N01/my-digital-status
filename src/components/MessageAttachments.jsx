@@ -103,6 +103,7 @@ export function MessageAttachmentPicker({ files, onFilesChange, disabled, onErro
   const streamRef = useRef(null);
   const chunksRef = useRef([]);
   const [recording, setRecording] = useState(false);
+  const [requestingMicrophone, setRequestingMicrophone] = useState(false);
 
   useEffect(() => () => {
     if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
@@ -121,14 +122,19 @@ export function MessageAttachmentPicker({ files, onFilesChange, disabled, onErro
 
   async function toggleRecording() {
     if (recording) { recorderRef.current?.stop(); return; }
-    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
-      onError('Voice recording is not supported in this browser.');
+    if (!window.isSecureContext) {
+      onError('Microphone recording requires a secure page. Open the site over HTTPS or localhost.');
       return;
     }
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+      onError('Voice recording is not supported in this browser. Try a current version of Chrome, Edge, Firefox, or Safari.');
+      return;
+    }
+    setRequestingMicrophone(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
-      const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/ogg', 'audio/mp4'].find((type) => MediaRecorder.isTypeSupported(type));
+      const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/ogg', 'audio/mp4'].find((type) => !MediaRecorder.isTypeSupported || MediaRecorder.isTypeSupported(type));
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       recorderRef.current = recorder;
       chunksRef.current = [];
@@ -144,18 +150,30 @@ export function MessageAttachmentPicker({ files, onFilesChange, disabled, onErro
       };
       recorder.start();
       setRecording(true);
+      setRequestingMicrophone(false);
       onError('');
-    } catch {
-      onError('Microphone access was not granted. Allow microphone access and try again.');
+    } catch (error) {
+      const microphoneErrors = {
+        NotAllowedError: 'Microphone access is blocked. Allow microphone access for this site in your browser settings, then try again.',
+        SecurityError: 'The browser blocked microphone access. Check this site’s microphone permission and use HTTPS or localhost.',
+        NotFoundError: 'No microphone was found. Connect or enable a microphone, then try again.',
+        DevicesNotFoundError: 'No microphone was found. Connect or enable a microphone, then try again.',
+        NotReadableError: 'The microphone could not start. It may be in use by another app or unavailable to the browser.',
+        TrackStartError: 'The microphone could not start. Check that it is connected and not being used by another app.',
+        OverconstrainedError: 'The microphone does not support the requested recording settings. Try another microphone.',
+        AbortError: 'Microphone startup was interrupted. Please try again.'
+      };
+      onError(microphoneErrors[error?.name] || `Could not start voice recording${error?.message ? `: ${error.message}` : '.'}`);
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
+      setRequestingMicrophone(false);
     }
   }
 
   return <div className="message-attachment-picker">
     <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime,audio/mpeg,audio/mp4,audio/aac,audio/wav,audio/ogg,audio/webm,audio/flac,application/pdf,text/plain,text/csv,application/zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx" multiple hidden disabled={disabled} onChange={(event) => { addFiles(event.target.files); event.target.value = ''; }} />
     <button type="button" className="message-attachment-action" disabled={disabled || recording} onClick={() => inputRef.current?.click()}><i className="fas fa-paperclip" /> Attach files</button>
-    <button type="button" className={`message-attachment-action${recording ? ' is-recording' : ''}`} disabled={disabled} onClick={toggleRecording}><i className={`fas ${recording ? 'fa-stop' : 'fa-microphone'}`} /> {recording ? 'Stop recording' : 'Record voice'}</button>
+    <button type="button" className={`message-attachment-action${recording ? ' is-recording' : ''}`} disabled={disabled || requestingMicrophone} onClick={toggleRecording} title="Records a voice note using your computer’s microphone; this is not speech-to-text dictation."><i className={`fas ${requestingMicrophone ? 'fa-spinner fa-spin' : recording ? 'fa-stop' : 'fa-microphone'}`} /> {requestingMicrophone ? 'Connecting microphone…' : recording ? 'Stop recording' : 'Record voice'}</button>
     {files.map((file, index) => <PendingAttachmentPreview key={`${file.name}-${file.lastModified}-${index}`} file={file} disabled={disabled || recording} onRemove={() => onFilesChange((current) => current.filter((_, itemIndex) => itemIndex !== index))} />)}
   </div>;
 }

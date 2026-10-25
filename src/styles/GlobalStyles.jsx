@@ -2609,6 +2609,13 @@ footer:not(.admin-footer) .footer-built a {
   color: var(--accent);
 }
 
+.admin-nav-link.is-super-admin-overview i,
+.admin-nav-link.is-super-admin-overview:hover i,
+.admin-nav-link.is-super-admin-overview.active i {
+  color: #159447;
+  font-weight: 900;
+}
+
 .nav-count {
   display: grid;
   min-width: 22px;
@@ -5111,6 +5118,29 @@ fieldset.profile-image-visibility-actions {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Compact account menu attached to the admin logout control. */
+.admin-sidebar .admin-account-menu { position: relative; display: flex; width: 100%; justify-content: flex-end; }
+.admin-sidebar .admin-logout.admin-logout-trigger { display: inline-flex; width: 36px; min-width: 36px; height: 36px; min-height: 36px; align-self: flex-end; justify-content: center; margin: 8px 0 5px; padding: 0; border-radius: 9px; font-size: 0; }
+.admin-sidebar .admin-logout-trigger::after { display: none; }
+.admin-sidebar .admin-logout-trigger .logout-action-icon { width: 18px; height: 18px; flex-basis: 18px; font-size: 0.88rem; }
+.admin-sidebar .admin-logout-trigger:hover:not(:disabled) { border-color: #dc2626; background: #fff4f4; color: #b91c1c; }
+.admin-sidebar .admin-logout-trigger:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 28%, transparent); outline-offset: 2px; }
+.admin-account-menu-panel { position: fixed; z-index: 1600; display: grid; width: min(280px, calc(100vw - 24px)); max-height: calc(100vh - 24px); gap: 10px; overflow-y: auto; padding: 12px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--panel-solid); color: var(--text); box-shadow: 0 16px 40px #14223c35; }
+.admin-account-menu-profile { display: flex; min-width: 0; align-items: center; gap: 10px; padding: 2px 2px 10px; border-bottom: 1px solid var(--border); }
+.admin-account-menu-profile > img,
+.admin-account-menu-profile > .admin-account-avatar { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; border-radius: 50%; object-fit: cover; }
+.admin-account-menu-profile > span:last-child { display: grid; min-width: 0; gap: 3px; }
+.admin-account-menu-profile strong { overflow: hidden; color: var(--text); font-size: 0.82rem; text-overflow: ellipsis; white-space: nowrap; }
+.admin-account-menu-profile small { overflow-wrap: anywhere; color: var(--text-muted); font-size: 0.72rem; }
+.admin-account-menu-panel .form-feedback { margin: 0; padding: 8px 9px; font-size: 0.72rem; }
+.admin-account-menu-logout { display: flex; min-height: 36px; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid #efc9c9; border-radius: 8px; background: #fff7f7; color: #a73737; font: inherit; font-size: 0.78rem; font-weight: 750; text-align: left; cursor: pointer; }
+.admin-account-menu-logout:hover:not(:disabled) { border-color: #dc2626; background: #dc2626; color: #fff; }
+.admin-account-menu-logout:disabled { opacity: 0.6; cursor: wait; }
+.admin-sidebar .admin-nav-link .owner-activity-count { position: absolute; top: -4px; right: -3px; display: grid; width: 20px; min-width: 20px; height: 20px; margin: 0; padding: 0 2px; place-items: center; border: 2px solid var(--accent); border-radius: 50%; background: var(--panel-solid, #fff); color: var(--accent); font-size: 0.58rem; font-weight: 850; line-height: 1; box-shadow: 0 0 0 1px var(--panel-solid, #fff); }
+@media (max-width: 520px) {
+  .admin-account-menu-panel { width: min(300px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow-y: auto; }
 }
 `;
 
