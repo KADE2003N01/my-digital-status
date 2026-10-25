@@ -95,14 +95,21 @@
 .admin-message-replying-to span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .admin-message-replying-to button { flex: 0 0 auto; border: 0; background: transparent; color: var(--text-muted); cursor: pointer; }
 .admin-message-reply-paused { grid-column: 1 / -1; margin: 0; color: #a64a4a; font-size: 10px; }
-.admin-message-compose textarea { width: 100%; min-height: 74px; resize: vertical; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: 9px; outline: none; color: var(--text); background: var(--panel-solid); font: inherit; font-size: 12px; }
+.admin-message-compose textarea { width: 100%; min-height: 44px; max-height: 170px; height: auto; resize: none; field-sizing: content; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: 9px; outline: none; color: var(--text); background: var(--panel-solid); font: inherit; font-size: 12px; }
 .admin-message-compose textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent); }
 .admin-message-compose .admin-button { flex: 0 0 auto; min-height: 40px; }
 .admin-messages-error { padding: 10px 12px; border: 1px solid #f0dada; border-radius: 9px; color: #9f3734; background: #fff4f3; font-size: 12px; }
 .admin-messages-notice { padding: 9px 12px; border: 1px solid #cce9d4; border-radius: 9px; color: #27683a; background: #effaf2; font-size: 12px; }
 
 /* Private super-admin conversations use a chat list while keeping admin-only permissions. */
-.admin-platform-chat { height: min(720px, calc(100vh - 245px)); min-height: 500px; grid-template-columns: minmax(220px, 270px) minmax(0, 1fr) !important; grid-template-rows: minmax(0, 1fr); border-color: #d9e6df; background: #efeae2; }
+/* The messages page fills the viewport instead of scrolling the whole page. */
+.admin-messages-page { display: flex; flex-direction: column; min-height: 0; }
+.admin-messages-page .admin-message-inbox-tabs,
+.admin-messages-page .admin-messages-error,
+.admin-messages-page .admin-messages-notice { flex: 0 0 auto; }
+.admin-messages-page .admin-messages-panel { flex: 1 1 auto; min-height: 0; }
+.admin-platform-chat { height: auto; min-height: 0; grid-template-columns: minmax(220px, 270px) minmax(0, 1fr) !important; grid-template-rows: minmax(0, 1fr); border-color: #d9e6df; background: #efeae2; }
+.visitor-inbox-panel { min-height: 0; }
 .admin-platform-threads { min-width: 0; max-height: 100%; overflow-y: auto; background: #f5f7f4; }
 .admin-platform-threads h2 { display: flex; justify-content: space-between; align-items: center; }
 .admin-platform-threads h2 span { color: var(--text-muted); font-size: 11px; }
@@ -127,7 +134,7 @@
 .admin-platform-chat .admin-message-conversation { height: 100%; min-height: 0; overflow: hidden; }
 .admin-platform-chat .admin-message-list { flex: 1 1 0; min-height: 0; max-height: none; overscroll-behavior: contain; }
 .admin-platform-chat .admin-message-compose { flex: 0 0 auto; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 10px; padding: 11px 13px; background: var(--panel-solid); }
-.admin-platform-chat .admin-message-compose textarea { grid-column: 1 / -1; min-height: 88px; max-height: 170px; resize: vertical; }
+.admin-platform-chat .admin-message-compose textarea { grid-column: 1 / -1; min-height: 44px; max-height: 170px; resize: none; }
 .admin-platform-chat .admin-message-compose .message-attachment-picker,
 .admin-platform-chat .admin-message-compose .admin-message-replying-to,
 .admin-platform-chat .admin-message-compose .admin-message-reply-paused { grid-column: 1 / -1; }
@@ -147,7 +154,9 @@
 .admin-message-delete-dialog { max-height: calc(100vh - 32px); overflow-y: auto; }
 @supports (height: 100dvh) { .admin-message-delete-dialog { max-height: calc(100dvh - 32px); } }
 @media (max-width: 700px) {
-  .admin-messages-heading { align-items: stretch; flex-direction: column; }
+  .admin-messages-heading { align-items: stretch; flex-direction: column; margin-bottom: 6px; }
+  .admin-messages-page .admin-messages-heading { flex: 0 0 auto; }
+  .admin-messages-heading .admin-subheading { display: none; }
   .admin-super-admin-contact { min-width: 0; }
   .admin-message-inbox-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; width: 100%; margin-bottom: 10px; }
   .admin-message-inbox-tabs button { min-width: 0; min-height: 42px; gap: 5px; padding: 6px 7px; border-radius: 8px; font-size: 10px; white-space: normal; }
@@ -162,7 +171,8 @@
   .admin-message-compose .message-attachment-picker { grid-column: 1; }
   .admin-message-compose textarea { grid-column: 1; }
   .admin-message-compose .admin-button { align-self: flex-end; }
-  .admin-platform-chat { display: grid; grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: minmax(0, 1fr); height: min(680px, calc(100vh - 230px)); height: min(680px, calc(100dvh - 230px)); min-height: 460px; }
+  .admin-platform-chat { display: grid; grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: minmax(0, 1fr); height: auto; min-height: 0; }
+  .admin-message-list { min-height: 0; padding: 13px; }
   .admin-platform-chat:not(.is-chat-open) .admin-message-conversation { display: none; }
   .admin-platform-chat.is-chat-open .admin-platform-threads { display: none; }
   .admin-platform-chat .admin-platform-threads { max-height: min(65vh, 620px); overflow-y: auto; border-right: 0; border-bottom: 0; }
@@ -173,6 +183,10 @@
   .admin-platform-chat-back { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 6px 9px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--panel-solid); color: var(--accent); font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
   .admin-platform-chat .admin-message-list { max-height: none; min-height: 0; padding: 12px; background: #efeae2; }
   .admin-platform-chat .admin-message-list article { max-width: 92%; padding: 9px 10px; }
+  /* Long-press to delete: show a pressed state while holding a message. */
+  .admin-platform-chat .admin-message-list article.is-long-press,
+  .admin-message-list article.is-long-press { transform: scale(.97); transition: transform .12s ease; }
+  .admin-message-list article { touch-action: pan-y; }
   .admin-platform-chat .admin-message-compose { gap: 8px; padding: 10px; background: var(--panel-solid); }
   .admin-platform-chat .admin-message-compose textarea { min-height: 82px; }
   .admin-platform-chat .admin-message-compose .admin-button { width: auto; min-width: 78px; min-height: 34px; }
