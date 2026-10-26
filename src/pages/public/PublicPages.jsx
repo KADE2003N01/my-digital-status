@@ -150,7 +150,7 @@ function ThemeToggle() {
   }, [light]);
   return (
     <button className="theme-toggle" id="theme-toggle" aria-label={t('Toggle light/dark mode')} title={t('Toggle light/dark mode')} type="button" onClick={() => setLight((value) => !value)}>
-      {light ? '🌙' : '☀️'}
+      {light ? <i className="fas fa-moon" aria-hidden="true"></i> : <i className="fas fa-sun" aria-hidden="true"></i>}
     </button>
   );
 }
@@ -232,7 +232,7 @@ function Navigation({ homepage = false, homepageContent }) {
           type="button"
           onClick={() => setOpen((value) => !value)}
         >
-          {open ? '✕' : '☰'}
+          {open ? <i className="fas fa-xmark" aria-hidden="true"></i> : <i className="fas fa-bars" aria-hidden="true"></i>}
         </button>
       </div>
     </nav>
@@ -388,7 +388,6 @@ function Hero({ id, title, subtitle, intro, homepage = false, videoUrl }) {
       <div className="home-overlay"></div>
       <div className="home-wrapper">
         <div className={`home-content${homepage ? '' : ' section-content'}`}>
-          {homepage && <p className="home-kicker"><span></span> {t(title.kicker)}</p>}
           <h1 className="glitch" data-text={t(title.text)} id={homepage ? 'dynamic-title' : undefined}>{t(title.text)}</h1>
           {homepage ? (
             <>
@@ -433,9 +432,9 @@ const homepageFallback = {
     navigation: NAV_ITEMS.map(([label, href]) => ({ label, href }))
   },
   hero: {
-    visible: true, kicker: 'DAVID KWIZERA · COMPUTER SCIENCE', title: "I'm a Developer",
-    subtitle: 'Computer Science Student | Frontend Developer',
-    intro: 'I build responsive, user-friendly web experiences and keep learning how thoughtful software can solve real problems.',
+    visible: true, kicker: 'DAVID KWIZERA', title: 'I build things for the web',
+    subtitle: 'Computer Science student — Frontend Developer',
+    intro: "I'm David, a Computer Science student at the University of Rwanda. I spend most of my time building small web projects, breaking them, and figuring out how to make them better.",
     videoUrl: '', backgroundImageUrl: '',
     buttons: [
       { label: 'Explore my documents', href: 'src/document.html', style: 'primary' },
@@ -449,8 +448,8 @@ const homepageFallback = {
     linkLabel: 'Get to know me', linkHref: 'src/about.html'
   },
   highlights: {
-    visible: true, eyebrow: 'WELCOME', title: "Hey there — I'm glad you stopped by 👋",
-    message: "Pull up a chair and look around. This space holds my story, the things I'm learning, and the work I'm proud of. Take your time — there's plenty to explore.",
+    visible: true, eyebrow: 'WELCOME', title: "Thanks for stopping by",
+    message: "This is where I keep my story, the things I'm learning, and the work I'm proud of so far. Have a look around.",
     linkLabel: 'Get to know me', linkHref: 'src/skills.html'
   },
   documents: {
@@ -533,7 +532,6 @@ function Homepage() {
         <div className="home-overlay"></div>
         <div className="home-wrapper">
           <div className="home-content">
-            <p className="home-kicker"><span></span> {t(hero.kicker)}</p>
             <h1 className="glitch" data-text={t(hero.title)} id="dynamic-title">{t(hero.title)}</h1>
             <p className="subtitle" id="homepage-subtitle">{t(hero.subtitle)}</p>
             <p className="intro" id="homepage-intro">{t(hero.intro)}</p>
@@ -640,7 +638,7 @@ function BackgroundPage() {
         </div>
       </div>
       <div className="card" style={{ marginTop: 24 }}>
-        <h3 style={{ color: 'var(--accent)', marginTop: 0, fontSize: '1.25rem', fontWeight: 800 }}>✦ Key Learning &amp; Growth Points</h3>
+        <h3 style={{ color: 'var(--accent)', marginTop: 0, fontSize: '1.25rem', fontWeight: 800 }}>Key Learning &amp; Growth Points</h3>
         <div className="grid-responsive" style={{ marginTop: 16 }}>
           <div style={{ padding: '16px 18px', background: 'var(--bg-soft)', borderRadius: 12, border: '1px solid var(--border)', borderLeft: '4px solid var(--accent)' }}>
             <h4 style={{ margin: '0 0 8px', color: 'var(--text)', fontSize: '0.98rem', fontWeight: 750 }}>Adaptability</h4>
@@ -782,7 +780,7 @@ function ContactPage() {
           {contactPhone && <a href={`https://wa.me/${contactPhone.slice(1)}`} target="_blank" rel="noopener noreferrer" style={socialStyle}><i className="fab fa-whatsapp"></i> WhatsApp</a>}
         </div>
       </div>
-      <div className="card" style={{ marginTop: 24 }}><h3 style={{ color: 'var(--accent)', marginBottom: 12, fontSize: '1.25rem', fontWeight: 800 }}>{t('Response Time')}</h3><p>📧 <strong>Email:</strong> {t('I check messages regularly and try to respond within 24 hours.')}</p><p>💬 <strong>WhatsApp/Messages:</strong> {t('For urgent matters, WhatsApp is often the quickest way to reach me.')}</p><p>🔗 <strong>LinkedIn:</strong> {t('Connect with me for professional networking and opportunities.')}</p></div>
+      <div className="card" style={{ marginTop: 24 }}><h3 style={{ color: 'var(--accent)', marginBottom: 12, fontSize: '1.25rem', fontWeight: 800 }}>{t('Response Time')}</h3><p><i className="fas fa-envelope" aria-hidden="true"></i> <strong>Email:</strong> {t('I check messages regularly and try to respond within 24 hours.')}</p><p><i className="fab fa-whatsapp" aria-hidden="true"></i> <strong>WhatsApp/Messages:</strong> {t('For urgent matters, WhatsApp is often the quickest way to reach me.')}</p><p><i className="fab fa-linkedin" aria-hidden="true"></i> <strong>LinkedIn:</strong> {t('Connect with me for professional networking and opportunities.')}</p></div>
     </section>
   </InnerPage>;
 }

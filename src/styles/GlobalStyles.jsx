@@ -380,7 +380,7 @@ nav {
 }
 
 #home {
-  margin-top: 12px;
+  margin-top: 0;
   border-radius: 18px;
 }
 
@@ -1246,8 +1246,8 @@ html.dark-theme #others::before {
    ========================================================= */
 footer:not(.admin-footer) {
   margin-top: 60px;
-  border-top: 1px solid rgba(29, 78, 216, 0.5);
-  background: #1d4ed8;
+  border-top: 1px solid rgba(59, 130, 246, 0.35);
+  background: #061027;
   color: #ffffff;
 }
 
@@ -1261,11 +1261,11 @@ footer:not(.admin-footer) .footer-links a {
 }
 
 footer:not(.admin-footer) .footer-links a::before {
-  color: #bfdbfe;
+  color: #60a5fa;
 }
 
 footer:not(.admin-footer) .footer-links a:hover {
-  color: #bfdbfe;
+  color: #93c5fd;
 }
 
 footer:not(.admin-footer) .footer-social a {
@@ -1280,7 +1280,7 @@ footer:not(.admin-footer) .footer-social a:hover {
 }
 
 footer:not(.admin-footer) .footer-contact i {
-  color: #bfdbfe;
+  color: #60a5fa;
 }
 
 footer:not(.admin-footer) .footer-bottom {
@@ -1289,7 +1289,7 @@ footer:not(.admin-footer) .footer-bottom {
 }
 
 footer:not(.admin-footer) .footer-built a {
-  color: #bfdbfe;
+  color: #93c5fd;
 }
 
 .footer-container {
@@ -4662,7 +4662,7 @@ fieldset.profile-image-visibility-actions {
     min-height: 480px;
     padding: 60px 18px;
   }
-  #home { margin-top: 8px; }
+  #home { margin-top: 0; }
   .home-intro-section {
     grid-template-columns: 1fr;
     gap: 24px;
