@@ -818,12 +818,10 @@ function DownloadModal({ requestedDocumentId, onClose, mode = 'download', onPrev
   const { t } = useLanguage();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [reason, setReason] = useState('');
   const [consent, setConsent] = useState(false);
   const [code, setCode] = useState('');
   const [challengeId, setChallengeId] = useState('');
-  const [channel, setChannel] = useState('');
   const [authorization, setAuthorization] = useState(null);
   const [status, setStatus] = useState('');
   const [success, setSuccess] = useState(false);
@@ -838,12 +836,10 @@ function DownloadModal({ requestedDocumentId, onClose, mode = 'download', onPrev
   const reset = useCallback(() => {
     setName('');
     setEmail('');
-    setPhone('');
     setReason('');
     setConsent(false);
     setCode('');
     setChallengeId('');
-    setChannel('');
     setAuthorization(null);
     setStatus('');
     setSuccess(false);
@@ -866,26 +862,22 @@ function DownloadModal({ requestedDocumentId, onClose, mode = 'download', onPrev
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [close, requestedDocumentId]);
-  const sendCode = async (selectedChannel) => {
+  const sendCode = async () => {
     if ((mode !== 'preview' && (name.trim().length < 2 || name.trim().length > 100 || reason.trim().length < 10 || reason.length > 1000)) || !consent) {
-      setStatus(mode === 'preview' ? 'Please agree to email verification before requesting a code.' : 'Please complete your name, phone number, reason, and consent before requesting a code.');
-      return;
-    }
-    if (mode !== 'preview' && !isValidInternationalPhone(phone)) {
-      setStatus(t('Choose a country and enter a valid phone number.'));
+      setStatus(mode === 'preview' ? 'Please agree to email verification before requesting a code.' : 'Please complete your name, reason, and consent before requesting a code.');
       return;
     }
     if (!emailValid) {
       setStatus(t('Enter a valid email address.'));
       return;
     }
-    setBusy(selectedChannel);
+    setBusy('email');
     setSuccess(false);
     try {
       const response = await apiFetch('/downloads/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documentId: requestedDocumentId, purpose: mode, name: name.trim(), email: email.trim(), phone: phone.trim(), reason: reason.trim(), channel: 'email', consent })
+        body: JSON.stringify({ documentId: requestedDocumentId, purpose: mode, name: name.trim(), email: email.trim(), reason: reason.trim(), consent })
       });
       const result = await response.json();
       if (!response.ok) {
@@ -894,12 +886,11 @@ function DownloadModal({ requestedDocumentId, onClose, mode = 'download', onPrev
         throw error;
       }
       setChallengeId(result.challengeId);
-      setChannel('email');
       setCode('');
       setStatus(t('A code was sent to {recipient}. Enter the six-digit code from that email below.', { recipient: result.recipientPreview }));
       window.requestAnimationFrame(() => codeRef.current?.focus());
     } catch (error) {
-      console.error(`Could not send the ${selectedChannel} verification code:`, error);
+      console.error('Could not send the email verification code:', error);
       setStatus(t(error.message || 'No verification code was sent. Please check your contact details and try again.'));
     } finally {
       setBusy('');
@@ -991,8 +982,6 @@ function DownloadModal({ requestedDocumentId, onClose, mode = 'download', onPrev
             <label htmlFor="download-email">{t('Email address')}</label>
             <input id="download-email" name="email" type="email" autoComplete="email" maxLength="254" required disabled={Boolean(challengeId)} value={email} onChange={(event) => setEmail(event.target.value)} ref={emailRef} />
             <p id="download-contact-hint" className={`download-contact-hint${email.trim() && !emailValid ? ' error' : ''}`} aria-live="polite">{email.trim() && !emailValid ? t('Enter a valid email address.') : t('We’ll send a six-digit verification code to this address.')}</p>
-            <label htmlFor="download-phone" hidden={mode === 'preview'}>{t('Phone number')}</label>
-            <PhoneNumberField id="download-phone" value={phone} onChange={setPhone} required={mode !== 'preview'} disabled={Boolean(challengeId) || mode === 'preview'} hidden={mode === 'preview'} />
             <label htmlFor="download-reason" hidden={mode === 'preview'}>{t('Why do you need this document?')}</label>
             <textarea id="download-reason" name="reason" rows="2" minLength="10" maxLength="1000" required={mode !== 'preview'} disabled={Boolean(challengeId) || mode === 'preview'} hidden={mode === 'preview'} value={reason} onChange={(event) => setReason(event.target.value)}></textarea>
             <label className="download-consent">
@@ -1001,14 +990,14 @@ function DownloadModal({ requestedDocumentId, onClose, mode = 'download', onPrev
             </label>
           </div>
           <div className="download-code-actions" id="download-code-actions" hidden={!codeActionsVisible}>
-            <button className="download-submit" id="send-email-code" type="button" disabled={!emailValid || Boolean(busy)} onClick={() => sendCode('email')}><i className="fas fa-envelope"></i> {t('Send code to this email')}</button>
+            <button className="download-submit" id="send-email-code" type="button" disabled={!emailValid || Boolean(busy)} onClick={sendCode}><i className="fas fa-envelope"></i> {t('Send code to this email')}</button>
           </div>
           <div id="download-verification-fields" hidden={!challengeId}>
-            <label htmlFor="download-verification-code">Verification code <span id="verification-channel-hint">{channel ? `sent to your ${channel}` : ''}</span></label>
+            <label htmlFor="download-verification-code">Verification code <span id="verification-channel-hint">{t('sent to your')} email</span></label>
             <input id="download-verification-code" name="verificationCode" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" minLength="6" maxLength="6" required={Boolean(challengeId)} disabled={Boolean(authorization)} value={code} onChange={(event) => setCode(event.target.value)} ref={codeRef} />
             <div className="download-code-actions">
               {!authorization && <button className="download-submit" id="verify-download-code" type="button" disabled={Boolean(busy)} onClick={verifyCode}>{busy === 'verify' ? 'Verifying…' : 'Verify code'}</button>}
-              {!authorization && <button className="download-change-email" id="download-resend-code" type="button" disabled={Boolean(busy)} onClick={() => sendCode('email')}>{busy === 'email' ? 'Sending…' : 'Resend code'}</button>}
+              {!authorization && <button className="download-change-email" id="download-resend-code" type="button" disabled={Boolean(busy)} onClick={sendCode}>{busy === 'email' ? 'Sending…' : 'Resend code'}</button>}
               {!authorization && <button className="download-change-email" id="download-change-email" type="button" onClick={() => { setChallengeId(''); setCode(''); setAuthorization(null); setStatus('Update your email address, then request another code.'); setSuccess(false); window.requestAnimationFrame(() => emailRef.current?.focus()); }}>Change email address</button>}
             </div>
           </div>

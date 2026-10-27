@@ -1,8 +1,9 @@
 const configuredApiUrl = import.meta.env.VITE_PORTFOLIO_API_BASE_URL;
+const localApiPort = Number(import.meta.env.VITE_PORTFOLIO_API_PORT) || 5000;
 const liveApiUrl = 'https://kade-status-backend-1d3q.onrender.com/api';
 const { hostname } = window.location;
 const localApiHost = hostname === '127.0.0.1' ? '127.0.0.1' : 'localhost';
-const localApiUrl = `http://${localApiHost}:5000/api`;
+const localApiUrl = `http://${localApiHost}:${localApiPort}/api`;
 const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
 const defaultApiUrls = isLocalHost
   ? ['/api', localApiUrl]

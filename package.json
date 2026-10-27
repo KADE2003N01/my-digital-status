@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "npm run dev:stack",
+    "dev:stack": "powershell -NoProfile -ExecutionPolicy Bypass -File ../dev.ps1",
+    "dev:vite": "vite",
     "build": "vite build",
     "test": "vitest run",
     "preview": "vite preview"

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 
 const frontendRoot = path.dirname(fileURLToPath(import.meta.url));
+const backendPort = Number(process.env.VITE_PORTFOLIO_API_PORT) || 5000;
 const pageTitles = {
   'about.html': 'About | David KWIZERA Portfolio',
   'background.html': 'Background | David KWIZERA Portfolio',
@@ -103,7 +104,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
-      '/api': 'http://127.0.0.1:5000'
+      '/api': `http://127.0.0.1:${backendPort}`
     }
   },
   build: {
