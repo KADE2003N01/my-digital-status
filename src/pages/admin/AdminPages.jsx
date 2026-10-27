@@ -1681,11 +1681,11 @@ function CvList({ cvs, onEdit, onDelete, busyId }) {
 const EMPTY_CERTIFICATE = { id: '', type: '', title: '', description: '', issuedAt: '', institution: '' };
 
 export function AdminDocumentsPage() {
-    const { t } = useLanguage();
     return <AdminPage active="documents"><DocumentsContent /></AdminPage>;
 }
 
 function DocumentsContent() {
+    const { t } = useLanguage();
     const [documents, setDocuments] = useState([]);
     const [loadingError, setLoadingError] = useState('');
     const [cvForm, setCvForm] = useState({ title: '', description: '', issuedAt: '', institution: '' });
@@ -1822,14 +1822,21 @@ function DocumentsContent() {
         if (!window.confirm(t('Delete "{title}" permanently? Visitors will no longer see this document. This cannot be undone.', { title: item.title }))) return;
         setBusyId(item.documentId);
         try {
-            const response = await apiRequest(`/documents/${encodeURIComponent(item.documentId)}`, { method: 'DELETE' });
-            await responseJson(response, 'Could not delete the document.');
+            const response = await apiRequest(`/documents/${encodeURIComponent(item.documentId)}`, { method: 'DELETE', silentNotification: false });
+            if (!response.ok) {
+                const result = await response.json().catch(() => ({}));
+                throw new Error(result.error || 'Could not delete the document.');
+            }
             setDocuments((current) => current.filter((doc) => doc.documentId !== item.documentId));
             if (certificate.id === item.documentId) resetCertificate();
-            setCertificateFeedback({ message: `"${item.title}" deleted.`, error: false });
+            const feedback = { message: `"${item.title}" deleted.`, error: false };
+            if (item.type === 'cv') setCvFeedback(feedback);
+            else setCertificateFeedback(feedback);
         } catch (error) {
             console.error('Document delete failed:', error);
-            setCertificateFeedback({ message: displayError(error, 'Could not delete the document.'), error: true });
+            const feedback = { message: displayError(error, 'Could not delete the document.'), error: true };
+            if (item.type === 'cv') setCvFeedback(feedback);
+            else setCertificateFeedback(feedback);
         } finally {
             setBusyId('');
         }
