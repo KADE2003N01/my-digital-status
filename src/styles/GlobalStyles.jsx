@@ -2132,6 +2132,10 @@ footer:not(.admin-footer) .footer-built a {
   display: none !important;
 }
 
+.download-request-form .phone-number-field {
+  min-height: 48px;
+}
+
 .download-request-form label:not(.download-consent) {
   margin-top: 4px;
   color: var(--text);

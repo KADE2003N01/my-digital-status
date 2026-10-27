@@ -818,6 +818,7 @@ function DownloadModal({ requestedDocumentId, onClose, mode = 'download', onPrev
   const { t } = useLanguage();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [reason, setReason] = useState('');
   const [consent, setConsent] = useState(false);
   const [code, setCode] = useState('');
@@ -836,6 +837,7 @@ function DownloadModal({ requestedDocumentId, onClose, mode = 'download', onPrev
   const reset = useCallback(() => {
     setName('');
     setEmail('');
+    setPhone('');
     setReason('');
     setConsent(false);
     setCode('');
@@ -871,13 +873,17 @@ function DownloadModal({ requestedDocumentId, onClose, mode = 'download', onPrev
       setStatus(t('Enter a valid email address.'));
       return;
     }
+    if (mode !== 'preview' && !isValidInternationalPhone(phone.trim())) {
+      setStatus(t('Choose a country and enter a valid phone number.'));
+      return;
+    }
     setBusy('email');
     setSuccess(false);
     try {
       const response = await apiFetch('/downloads/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documentId: requestedDocumentId, purpose: mode, name: name.trim(), email: email.trim(), reason: reason.trim(), consent })
+        body: JSON.stringify({ documentId: requestedDocumentId, purpose: mode, name: name.trim(), email: email.trim(), phone: phone.trim(), reason: reason.trim(), consent })
       });
       const result = await response.json();
       if (!response.ok) {
@@ -978,12 +984,15 @@ function DownloadModal({ requestedDocumentId, onClose, mode = 'download', onPrev
           <input type="hidden" id="requested-document-id" value={requestedDocumentId || ''} readOnly />
           <div id="download-request-fields" hidden={Boolean(challengeId)}>
             <label htmlFor="download-name" hidden={mode === 'preview'}>{t('Your name')}</label>
-            <input id="download-name" name="name" type="text" autoComplete="name" minLength="2" maxLength="100" required={mode !== 'preview'} disabled={Boolean(challengeId) || mode === 'preview'} hidden={mode === 'preview'} value={name} onChange={(event) => setName(event.target.value)} ref={nameRef} />
+            <input id="download-name" name="name" type="text" autoComplete="name" minLength="2" maxLength="100" placeholder={t('e.g. Jane Doe')} required={mode !== 'preview'} disabled={Boolean(challengeId) || mode === 'preview'} hidden={mode === 'preview'} value={name} onChange={(event) => setName(event.target.value)} ref={nameRef} />
             <label htmlFor="download-email">{t('Email address')}</label>
-            <input id="download-email" name="email" type="email" autoComplete="email" maxLength="254" required disabled={Boolean(challengeId)} value={email} onChange={(event) => setEmail(event.target.value)} ref={emailRef} />
+            <input id="download-email" name="email" type="email" autoComplete="email" maxLength="254" placeholder="name@example.com" required disabled={Boolean(challengeId)} value={email} onChange={(event) => setEmail(event.target.value)} ref={emailRef} />
             <p id="download-contact-hint" className={`download-contact-hint${email.trim() && !emailValid ? ' error' : ''}`} aria-live="polite">{email.trim() && !emailValid ? t('Enter a valid email address.') : t('We’ll send a six-digit verification code to this address.')}</p>
+            <label htmlFor="download-phone" hidden={mode === 'preview'}>{t('Phone number')}</label>
+            <PhoneNumberField id="download-phone" value={phone} onChange={(newPhone) => setPhone(newPhone)} required={mode !== 'preview'} disabled={Boolean(challengeId) || mode === 'preview'} hidden={mode === 'preview'} describedBy="download-phone-hint" />
+            <small id="download-phone-hint" hidden={mode === 'preview'}>{t('Choose your country code and enter the number. This phone field does not restrict who can visit the website.')}</small>
             <label htmlFor="download-reason" hidden={mode === 'preview'}>{t('Why do you need this document?')}</label>
-            <textarea id="download-reason" name="reason" rows="2" minLength="10" maxLength="1000" required={mode !== 'preview'} disabled={Boolean(challengeId) || mode === 'preview'} hidden={mode === 'preview'} value={reason} onChange={(event) => setReason(event.target.value)}></textarea>
+            <textarea id="download-reason" name="reason" rows="2" minLength="10" maxLength="1000" placeholder={t('e.g. I would like to use your CV for a job application...')} required={mode !== 'preview'} disabled={Boolean(challengeId) || mode === 'preview'} hidden={mode === 'preview'} value={reason} onChange={(event) => setReason(event.target.value)}></textarea>
             <label className="download-consent">
               <input id="download-consent" type="checkbox" required disabled={Boolean(challengeId)} checked={consent} onChange={(event) => setConsent(event.target.checked)} />
               <span>{mode === 'preview' ? 'I agree to use my email address to verify preview access. It will not be added to the admin request list.' : 'I agree to have my contact details and reason saved for this download request.'}</span>
@@ -994,7 +1003,7 @@ function DownloadModal({ requestedDocumentId, onClose, mode = 'download', onPrev
           </div>
           <div id="download-verification-fields" hidden={!challengeId}>
             <label htmlFor="download-verification-code">Verification code <span id="verification-channel-hint">{t('sent to your')} email</span></label>
-            <input id="download-verification-code" name="verificationCode" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" minLength="6" maxLength="6" required={Boolean(challengeId)} disabled={Boolean(authorization)} value={code} onChange={(event) => setCode(event.target.value)} ref={codeRef} />
+            <input id="download-verification-code" name="verificationCode" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" minLength="6" maxLength="6" placeholder="123456" required={Boolean(challengeId)} disabled={Boolean(authorization)} value={code} onChange={(event) => setCode(event.target.value)} ref={codeRef} />
             <div className="download-code-actions">
               {!authorization && <button className="download-submit" id="verify-download-code" type="button" disabled={Boolean(busy)} onClick={verifyCode}>{busy === 'verify' ? 'Verifying…' : 'Verify code'}</button>}
               {!authorization && <button className="download-change-email" id="download-resend-code" type="button" disabled={Boolean(busy)} onClick={sendCode}>{busy === 'email' ? 'Sending…' : 'Resend code'}</button>}
