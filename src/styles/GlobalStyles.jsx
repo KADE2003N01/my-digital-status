@@ -2562,8 +2562,8 @@ footer:not(.admin-footer) .footer-built a {
 .admin-nav-link:hover i,
 .admin-nav-link.active i { color: var(--accent); transform: scale(1.08); }
 
-/* Sidebar flush to the page edge: no extra left margin */
-.admin-shell { padding-left: 0; }
+/* Keep the admin rail anchored to the viewport's left edge. */
+.admin-shell { margin-left: 0; margin-right: auto; padding-left: 0; }
 .admin-sidebar { margin-left: 0; }
 
 .admin-nav-label {
@@ -4562,7 +4562,9 @@ fieldset.profile-image-visibility-actions {
   .admin-shell {
     grid-template-columns: 220px minmax(0, 1fr);
     gap: 20px;
-    padding-inline: 18px;
+    margin-left: 0;
+    padding-left: 0;
+    padding-right: 18px;
   }
   .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

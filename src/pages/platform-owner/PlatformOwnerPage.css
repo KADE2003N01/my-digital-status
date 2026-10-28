@@ -314,7 +314,8 @@
 .owner-message-role-filter select { flex: 1; min-width: 0; max-width: 150px; min-height: 26px; padding: 3px 7px; border: 1px solid #dce4ef; border-radius: 7px; background: #fff; color: #20314b; font-size: 10.5px; }
 .owner-message-admins h3 { display: flex; align-items: center; justify-content: space-between; margin: 2px 0 0; color: #263954; font-size: 9.5px; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; }
 .owner-message-admins h3 span { color: #8b98ac; font-size: 9px; font-weight: 600; letter-spacing: 0; }
-.owner-message-admins .owner-message-admin { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 9px; border: 1px solid transparent; border-radius: 9px; background: transparent; text-align: left; cursor: pointer; transition: background .15s ease, border-color .15s ease; }
+.owner-message-admin-row { display: flex; flex: 0 0 auto; align-items: stretch; }
+.owner-message-admins .owner-message-admin { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; padding: 7px 7px; border: 1px solid transparent; border-radius: 9px; background: transparent; text-align: left; cursor: pointer; transition: background .15s ease, border-color .15s ease; }
 .owner-message-admin:hover { background: #eef3fd; }
 .owner-message-admin.is-active { border-color: #c9d7f8; background: #eaf1ff; }
 .owner-message-admin.has-unread:not(.is-active) { border-color: #c9d7f8; background: #f2f6ff; }
@@ -323,15 +324,16 @@
 .owner-message-admin-copy { display: grid; min-width: 0; flex: 1; gap: 1px; }
 .owner-message-admin-copy strong { overflow: hidden; color: #20314b; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .owner-message-admin-copy small { overflow: hidden; color: #8b98ac; font-size: 9.5px; text-overflow: ellipsis; white-space: nowrap; }
-.owner-message-status { flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; }
-.owner-message-status.active { background: #2fa36a; }
-.owner-message-status.inactive { background: #d94444; box-shadow: 0 0 0 2px #d9444422; }
-.owner-message-status.pending { background: #e0a63c; }
+.owner-message-admin-copy .owner-message-account-status { font-weight: 700; }
+.owner-message-account-status.active { color: #198653; }
+.owner-message-account-status.inactive { color: #bb4148; }
+.owner-message-account-status.pending { color: #a87417; }
+.owner-super-admin-mark { margin-right: 4px; color: #d3a239; font-size: 9px; }
 .owner-message-empty-state { margin: 3px 0; color: #8b98ac; font-size: 10.5px; }
 .owner-message-admin-list { display: flex; flex-direction: column; gap: 4px; flex: 1; min-height: 0; overflow-y: auto; padding-right: 3px; scrollbar-width: thin; scrollbar-gutter: stable; }
 .owner-message-admin-list::-webkit-scrollbar { width: 6px; }
 .owner-message-admin-list::-webkit-scrollbar-thumb { border-radius: 6px; background: #cdd8ea; }
-.owner-message-admin-list .owner-message-admin { flex: 0 0 auto; }
+.owner-message-admin-list .owner-message-admin-row { width: 100%; }
 .owner-message-admin-tools { display: grid; gap: 7px; }
 .owner-message-filter-clear { display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: fit-content; min-height: 26px; padding: 3px 9px; border: 1px solid #dce4ef; border-radius: 7px; background: #fff; color: #53627a; font-size: 10px; font-weight: 700; cursor: pointer; }
 .owner-message-filter-clear:hover { border-color: #b83232; color: #b83232; }
@@ -378,9 +380,6 @@
 .owner-message-bubble.owner-sent { align-self: flex-end; border: 1px solid #c9d7f8; background: #eaf1ff; color: #22395d; border-bottom-right-radius: 3px; }
 .owner-message-bubble.admin-sent { align-self: flex-start; border: 1px solid #e5ebf4; background: #f6f8fc; color: #33445e; border-bottom-left-radius: 3px; }
 .owner-message-workspace { display: flex; flex-direction: column; min-height: 0; height: 100%; padding: 12px; border: 1px solid #e5ebf4; border-radius: 11px; background: #fff; }
-.owner-message-older-hint { align-self: center; margin: 0; padding: 2px 9px; border: 0; border-radius: 999px; background: #f1f5fb; color: #7d8aa0; font-size: 9px; font-weight: 650; cursor: pointer; }
-.owner-message-older-hint:hover { background: #e6edf9; color: #4d5f7d; }
-.owner-message-older-hint i { font-size: 8px; }
 .owner-message-compose { display: grid; gap: 6px; padding-top: 8px; border-top: 1px solid #edf1f7; flex: 0 0 auto; }
 .owner-message-compose-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .owner-message-recipient { display: inline-flex; align-items: center; gap: 7px; color: #52627c; font-size: 10.5px; font-weight: 700; }
@@ -945,16 +944,36 @@
 .owner-messages-page .owner-message-bulk-actions .owner-message-more-actions > summary { display: inline-flex; width: auto; min-height: 32px; padding: 5px 9px; gap: 6px; font-size: 10px; font-weight: 700; }
 .owner-messages-page .owner-message-more-actions > summary::-webkit-details-marker { display: none; }
 .owner-messages-page .owner-message-more-actions[open] > summary { border-color: #25d366; color: #0f7a45; }
-.owner-messages-page .owner-message-more-actions > div[role="menu"] { position: fixed; z-index: 1200; top: var(--message-menu-top, 12px); left: var(--message-menu-left, 12px); display: grid; width: min(190px, calc(100vw - 24px)); gap: 3px; padding: 5px; border: 1px solid #d9e6df; border-radius: 9px; background: #fff; box-shadow: 0 8px 24px #20385a24; }
+.owner-messages-page .owner-message-more-actions > div[role="menu"] { position: fixed; z-index: 1200; top: var(--message-menu-top, 12px); left: var(--message-menu-left, 12px); display: grid; width: min(220px, calc(100vw - 24px)); max-height: min(78vh, 560px); overflow-y: auto; overscroll-behavior: contain; gap: 3px; padding: 5px; border: 1px solid #d9e6df; border-radius: 9px; background: #fff; box-shadow: 0 8px 24px #20385a24; }
 .owner-messages-page .owner-message-more-actions > div[role="menu"] button { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 7px 9px; border: 0; border-radius: 6px; background: transparent; color: #42536b; font-size: 11px; text-align: left; cursor: pointer; }
 .owner-messages-page .owner-message-more-actions > div[role="menu"] button:hover:not(:disabled) { background: #f2f8f4; color: #0f7a45; }
 .owner-messages-page .owner-message-more-actions > div[role="menu"] button.owner-message-clear-permanent { color: #a23838; }
 .owner-messages-page .owner-message-more-actions > div[role="menu"] button:disabled { opacity: .5; cursor: not-allowed; }
+.owner-messages-page .owner-message-bubble.is-long-press { transform: scale(.97); transition: transform .12s ease; }
+.owner-messages-page .owner-message-reply-context { display: block; color: #27804b; font-size: 10px; }
+.owner-messages-page .owner-message-replying-note { display: block; flex: 1 0 100%; color: #52627c; font-size: 10px; }
+.owner-messages-page .owner-message-replying-note button { margin-left: 6px; border: 0; background: transparent; color: #0f7a45; cursor: pointer; }
+.owner-message-forward-backdrop { position: fixed; z-index: 1300; inset: 0; display: grid; place-items: center; padding: 16px; background: #101a2d80; }
+.owner-message-forward-dialog { display: grid; width: min(100%, 390px); gap: 10px; padding: 20px; border: 1px solid #dce5ef; border-radius: 14px; background: #fff; box-shadow: 0 20px 60px #10203a35; }
+.owner-message-forward-dialog h3, .owner-message-forward-dialog p { margin: 0; }
+.owner-message-forward-dialog h3 { color: #20314b; font-size: 16px; }
+.owner-message-forward-dialog p, .owner-message-forward-dialog label { color: #718097; font-size: 12px; }
+.owner-message-forward-dialog select { min-height: 40px; padding: 7px 10px; border: 1px solid #dce4ef; border-radius: 8px; background: #fff; color: #20314b; }
+.owner-message-forward-dialog > div { display: flex; justify-content: flex-end; gap: 8px; margin-top: 5px; }
+.owner-message-forward-dialog button { min-height: 36px; padding: 6px 12px; border: 1px solid #dce4ef; border-radius: 8px; background: #fff; color: #52627c; cursor: pointer; }
+.owner-message-forward-dialog button[type="submit"] { border-color: #25a45a; background: #25a45a; color: #fff; }
+.owner-message-forward-dialog button:disabled { opacity: .55; cursor: not-allowed; }
 .owner-message-mobile-back { display: none; }
 .owner-page[data-theme="dark"] .owner-message-more-actions > summary { border-color: #2c3a52; background: #16203a; color: #9fb0c9; }
 .owner-page[data-theme="dark"] .owner-message-more-actions > div[role="menu"] { border-color: #2c3a52; background: #131b2c; }
 .owner-page[data-theme="dark"] .owner-message-more-actions > div[role="menu"] button { color: #b9c4d8; }
 .owner-page[data-theme="dark"] .owner-message-more-actions > div[role="menu"] button:hover:not(:disabled) { background: #123528; color: #5bc489; }
+.owner-page[data-theme="dark"] .owner-message-replying-note { color: #9fb0c9; }
+.owner-page[data-theme="dark"] .owner-message-forward-dialog { border-color: #2c3a52; background: #131b2c; }
+.owner-page[data-theme="dark"] .owner-message-forward-dialog h3 { color: var(--owner-ink); }
+.owner-page[data-theme="dark"] .owner-message-forward-dialog select { border-color: #2c3a52; background: #16203a; color: var(--owner-ink); }
+.owner-page[data-theme="dark"] .owner-message-forward-dialog button { border-color: #2c3a52; background: #16203a; color: var(--owner-ink); }
+.owner-page[data-theme="dark"] .owner-message-forward-dialog button[type="submit"] { border-color: #25a45a; background: #25a45a; color: #fff; }
 
 @media (max-width: 860px) {
   .owner-messages-page .owner-muted-admins-panel { position: fixed; z-index: 1200; top: max(12px, env(safe-area-inset-top)); right: 12px; left: 12px; bottom: auto; width: auto; max-width: 420px; max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); margin-left: auto; }
@@ -993,4 +1012,68 @@
     overflow-wrap: normal;
     word-break: normal;
   }
+}
+
+.owner-message-admin-copy > strong { display: flex; align-items: center; gap: 4px; }
+.owner-message-admin-copy > strong .owner-message-unread { margin-left: auto; }
+.owner-message-unread-label { color: #267c4e !important; font-size: 9px !important; font-weight: 800; }
+.owner-message-reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.owner-message-reactions button { min-height: 23px; padding: 2px 7px; border: 1px solid #d5e0eb; border-radius: 999px; background: #fff; color: #33445e; font: inherit; font-size: 10px; cursor: pointer; }
+.owner-message-reactions button.is-reacted { border-color: #279a5a; background: #e7f7ed; color: #17653a; }
+.owner-message-reaction-options { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; padding: 3px; border-top: 1px solid #e5ebf4; }
+.owner-message-more-actions > div[role="menu"] .owner-message-reaction-options button { min-height: 32px; justify-content: center; padding: 4px; font-size: 17px; }
+.owner-muted-search { display: flex; align-items: center; gap: 6px; min-height: 27px; padding: 3px 7px; border: 1px solid #dce4ef; border-radius: 6px; background: #fff; color: #8491a4; }
+.owner-muted-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: #334155; font: inherit; font-size: 9px; }
+.owner-muted-admin-list .owner-muted-admin-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.owner-muted-admin-list .owner-muted-admin-row > label { flex: 1; min-width: 0; }
+.owner-muted-admin-row > button { flex: 0 0 auto; padding: 4px 6px; border: 1px solid #dce4ef; border-radius: 5px; background: #fff; color: #52627c; font-size: 8px; font-weight: 750; cursor: pointer; }
+.owner-muted-admin-row > button:disabled { opacity: .5; cursor: not-allowed; }
+.owner-muted-admins-toggle { min-height: 21px; padding: 1px 5px; font-size: 8px; }
+.owner-muted-admins-toggle i { font-size: 9px; }
+.owner-page[data-theme="dark"] .owner-message-reactions button,
+.owner-page[data-theme="dark"] .owner-muted-search,
+.owner-page[data-theme="dark"] .owner-muted-admin-row > button { border-color: #26314a; background: #101828; color: #c3cddd; }
+.owner-page[data-theme="dark"] .owner-message-reactions button.is-reacted { border-color: #276343; background: #153224; color: #d8f2e1; }
+.owner-page[data-theme="dark"] .owner-muted-search input { color: #c3cddd; }
+.owner-messages-page .owner-message-bubble { width: fit-content; min-width: 80px; max-width: min(78%, 760px); padding: 8px 12px; font-size: 12px; }
+.owner-messages-page .owner-message-bubble { min-width: 0; }
+.owner-messages-page .owner-message-bubble p,
+.owner-messages-page .owner-message-bubble > small { max-width: 100%; overflow-wrap: anywhere; }
+.owner-messages-page .owner-message-select { display: flex; align-items: center; justify-content: flex-start; gap: 7px; padding: 4px 7px; border: 1px solid #c9d7f8; border-radius: 7px; background: #f3f6ff; color: #315ce8; font-size: 10px; font-weight: 700; }
+.owner-messages-page .owner-message-select.is-received { border-color: #c9ead6; background: #f0faf3; color: #267c4e; }
+.owner-messages-page .owner-message-select input { width: 16px; height: 16px; flex: 0 0 auto; margin: 0; cursor: pointer; }
+.owner-messages-page .owner-message-clear-permanent { border-color: #efcaca !important; background: #fff3f3 !important; color: #a23838 !important; }
+.owner-messages-page .owner-message-clear-permanent:hover:not(:disabled) { background: #ffe6e6 !important; color: #8d2929 !important; }
+.owner-message-flags { display: flex; flex-wrap: wrap; gap: 7px; color: #8b6a23 !important; font-size: 9px !important; }
+.owner-message-flags span { display: inline-flex; align-items: center; gap: 3px; }
+.owner-message-reaction-options button { width: auto !important; min-width: 30px; min-height: 34px !important; height: auto !important; padding: 4px !important; place-items: center; font-size: 17px !important; }
+.owner-messages-page .owner-message-minimize-toggle { display: inline-grid; width: 25px; height: 23px; place-items: center; padding: 0; border: 1px solid #dce4ef; border-radius: 5px; background: #fff; color: #52627c; font-size: 9px; cursor: pointer; }
+.owner-message-layout.is-chat-minimized { flex: 0 0 auto; align-items: start; }
+.owner-message-layout.is-chat-minimized .owner-message-workspace { height: auto; }
+.owner-message-layout.is-chat-minimized .owner-message-history,
+.owner-message-layout.is-chat-minimized .owner-message-compose { display: none; }
+.owner-messages-page .owner-message-bulk-actions button.owner-message-clear-inbox { border-color: #c9ead6; background: #f1faf4; color: #267c4e; }
+.owner-message-delete-dialog { width: min(100%, 430px); padding: 22px; border: 1px solid #e6d3d3; border-radius: 14px; background: #fff; box-shadow: 0 24px 70px #14223c38; }
+.owner-message-delete-icon { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 12px; background: #fff0f0; color: #bd4149; }
+.owner-message-delete-dialog h3 { margin: 14px 0 7px; color: #20314b; font-size: 16px; }
+.owner-message-delete-dialog p { margin: 0 0 15px; color: #718097; font-size: 12px; line-height: 1.55; }
+.owner-message-delete-dialog label { display: block; margin-bottom: 6px; color: #20314b; font-size: 11px; font-weight: 750; }
+.owner-message-delete-dialog input { width: 100%; min-height: 40px; padding: 9px 11px; border: 1px solid #dce4ef; border-radius: 8px; background: #fff; color: #20314b; font: inherit; font-size: 13px; }
+.owner-message-delete-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.owner-message-delete-actions button { min-height: 36px; padding: 7px 12px; border: 1px solid #dce4ef; border-radius: 8px; background: #fff; color: #52627c; font-size: 11px; font-weight: 700; cursor: pointer; }
+.owner-message-delete-actions button[type="submit"] { border-color: #bd4149; background: #bd4149; color: #fff; }
+.owner-message-delete-actions button:disabled { opacity: .5; cursor: not-allowed; }
+.owner-page[data-theme="dark"] .owner-message-delete-dialog { border-color: #4a2d37; background: #131b2c; }
+.owner-page[data-theme="dark"] .owner-message-delete-dialog h3,
+.owner-page[data-theme="dark"] .owner-message-delete-dialog label { color: var(--owner-ink); }
+.owner-page[data-theme="dark"] .owner-message-delete-dialog input,
+.owner-page[data-theme="dark"] .owner-message-delete-actions button { border-color: #2c3a52; background: #16203a; color: var(--owner-ink); }
+.owner-page[data-theme="dark"] .owner-message-delete-actions button[type="submit"] { border-color: #bd4149; background: #bd4149; color: #fff; }
+.owner-page[data-theme="dark"] .owner-messages-page .owner-message-select { border-color: #344b82; background: #1b2a50; color: #d6e0f7; }
+.owner-page[data-theme="dark"] .owner-messages-page .owner-message-select.is-received { border-color: #24533c; background: #153224; color: #d8f2e1; }
+.owner-page[data-theme="dark"] .owner-messages-page .owner-message-clear-permanent { border-color: #6b3434 !important; background: #2b1919 !important; color: #ffb1b1 !important; }
+.owner-page[data-theme="dark"] .owner-message-flags { color: #e6ca82 !important; }
+.owner-page[data-theme="dark"] .owner-sidebar-unread-badge { border-color: #ffb1b1; background: #a23838; color: #fff; }
+@media (max-width: 700px) {
+  .owner-messages-page .owner-message-bubble { max-width: 92%; }
 }

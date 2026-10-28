@@ -18,6 +18,7 @@ const ADMIN_LOGIN_URL = 'admin-login.html';
 const AdminSessionContext = createContext(null);
 const ADMIN_NOTIFICATION_EVENT = 'kade-admin-notification';
 const ADMIN_PROFILE_IMAGE_UPDATED = 'kade-admin-profile-image-updated';
+const messageReactionOptions = ['👍', '❤️', '😂', '😮', '🙏'];
 
 export { ADMIN_NOTIFICATION_EVENT };
 
@@ -454,7 +455,7 @@ function AdminFrame({ session, logout, logoutError, loggingOut, active, download
     }, []);
 
     return (
-        <div className={`admin-page${railCollapsed ? ' admin-rail-collapsed' : ''}`}>
+        <div className={`admin-page admin-page-${active}${railCollapsed ? ' admin-rail-collapsed' : ''}`}>
             <TimedNotification message={notification?.message} tone={notification?.tone} onClose={dismissNotification} />
             <header className="admin-topbar">
                 <div className="admin-brand-group">
@@ -1082,12 +1083,16 @@ function AdminMessagesContent() {
     const [managingPlatformMessages, setManagingPlatformMessages] = useState(false);
     const [selectedPlatformMessageIds, setSelectedPlatformMessageIds] = useState([]);
     const [bulkClearOpen, setBulkClearOpen] = useState(false);
+    const [bulkClearMode, setBulkClearMode] = useState('sent');
     const [bulkClearConfirmation, setBulkClearConfirmation] = useState('');
     const [bulkClearing, setBulkClearing] = useState(false);
+    const [platformChatMinimized, setPlatformChatMinimized] = useState(false);
     const [inboxMode, setInboxMode] = useState('platform');
     const [visitorMessages, setVisitorMessages] = useState([]);
     const [visitorUnreadCount, setVisitorUnreadCount] = useState(0);
     const [activeVisitorId, setActiveVisitorId] = useState(null);
+    const [visitorSearchInput, setVisitorSearchInput] = useState('');
+    const [superAdminSearchInput, setSuperAdminSearchInput] = useState('');
     const [superAdmins, setSuperAdmins] = useState([]);
     const [recipientOwnerId, setRecipientOwnerId] = useState('');
     const [deleteCandidate, setDeleteCandidate] = useState(null);
@@ -1097,6 +1102,10 @@ function AdminMessagesContent() {
     const [body, setBody] = useState('');
     const [replyTarget, setReplyTarget] = useState(null);
     const [editingMessage, setEditingMessage] = useState(null);
+    const [editingVisitorReply, setEditingVisitorReply] = useState(null);
+    const [forwardMessage, setForwardMessage] = useState(null);
+    const [forwardRecipientId, setForwardRecipientId] = useState('');
+    const [forwardingMessage, setForwardingMessage] = useState(false);
     const messageBodyRef = useRef(null);
     const messagePageRef = useRef(null);
     const [pendingFiles, setPendingFiles] = useState([]);
@@ -1173,7 +1182,7 @@ function AdminMessagesContent() {
     }, [sending, loadMessages]);
 
     const selectedSuperAdmin = superAdmins.find((admin) => String(admin.id) === String(recipientOwnerId));
-    const activeMessages = messages.filter((message) => (owner || message.threadId === activeThreadId) && (
+    const privateMessages = messages.filter((message) => (owner || message.threadId === activeThreadId) && (
         owner
             ? message.senderEmail === session?.email
                 ? String(message.recipientOwnerId) === String(recipientOwnerId)
@@ -1182,14 +1191,24 @@ function AdminMessagesContent() {
                 ? String(message.senderId) === String(recipientOwnerId)
                 : String(message.recipientOwnerId) === String(recipientOwnerId)
     ));
+    const activeMessages = privateMessages;
     const selectablePlatformMessages = activeMessages.filter((message) => !message.deletedAt && (
         message.senderEmail === session?.email
         || (message.senderRole === 'platform_owner' && !message.isHidden)
     ));
+    const sentPlatformMessages = selectablePlatformMessages.filter((message) => message.senderEmail === session?.email);
     const selectedPlatformMessageIdsVisible = selectedPlatformMessageIds.filter((id) => selectablePlatformMessages.some((message) => String(message.id) === String(id)));
+    const selectedSentPlatformMessageIds = selectedPlatformMessageIdsVisible.filter((id) => sentPlatformMessages.some((message) => String(message.id) === String(id)));
+    const selectedReceivedPlatformMessageIds = selectedPlatformMessageIdsVisible.filter((id) => selectablePlatformMessages.some((message) =>
+        String(message.id) === String(id) && message.senderEmail !== session?.email
+    ));
     const allPlatformMessagesSelected = selectablePlatformMessages.length > 0 && selectablePlatformMessages.every((message) => selectedPlatformMessageIds.includes(message.id));
-    const activeMessagesNewestFirst = [...activeMessages].reverse();
     const activeVisitor = visitorMessages.find((item) => item.id === activeVisitorId);
+    const visitorSearch = visitorSearchInput.trim().toLowerCase();
+    const matchingVisitorMessages = visitorMessages.filter((item) =>
+        `${item.name || ''} ${item.email || ''} ${item.message || ''} ${(item.replies || []).map((reply) => reply.body).join(' ')}`.toLowerCase().includes(visitorSearch)
+    );
+    const superAdminSearch = superAdminSearchInput.trim().toLowerCase();
     const latestUnreadPlatformMessage = activeMessages.find((message) => !message.deletedAt && !message.isHidden && message.senderRole === 'platform_owner' && message.senderEmail !== session?.email && !message.isRead);
     const superAdminConversations = superAdmins.map((admin) => {
         const contactMessages = messages.filter((message) => (owner || message.threadId === activeThreadId) && (owner
@@ -1209,14 +1228,15 @@ function AdminMessagesContent() {
         const leftTime = left.lastMessage ? new Date(left.lastMessage.createdAt).getTime() || 0 : 0;
         const rightTime = right.lastMessage ? new Date(right.lastMessage.createdAt).getTime() || 0 : 0;
         return rightTime - leftTime || String(left.admin.displayName).localeCompare(String(right.admin.displayName));
-    });
+    }).filter(({ admin, lastMessage }) => !superAdminSearch
+        || `${admin.displayName || ''} ${admin.email || ''} ${lastMessage?.body || ''}`.toLowerCase().includes(superAdminSearch));
     useEffect(() => {
         // Keep the newest message visible: scroll to the bottom whenever the
         // conversation opens, switches, or a message is added.
         const list = messageListRef.current;
         if (!list) return;
         list.scrollTop = list.scrollHeight;
-    }, [inboxMode, recipientOwnerId, activeVisitorId, activeMessages.length, loading]);
+    }, [inboxMode, recipientOwnerId, activeVisitorId, activeMessages.length, visitorMessages.length, loading]);
 
     const cancelMessageLongPress = () => {
         if (longPressTimer.current) {
@@ -1227,8 +1247,7 @@ function AdminMessagesContent() {
         if (pressed) pressed.classList.remove('is-long-press');
     };
 
-    // Smartphone-friendly delete: press and hold any incoming or outgoing
-    // message to start the same delete flow as the ⋯ menu.
+    // On touchscreens, a long press opens the same action menu as the ⋯ button.
     const startMessageLongPress = (message) => (event) => {
         if (event.touches.length !== 1) return;
         cancelMessageLongPress();
@@ -1236,9 +1255,13 @@ function AdminMessagesContent() {
         longPressTimer.current = window.setTimeout(() => {
             longPressTimer.current = null;
             const pressed = event.target.closest?.('.admin-message-list article');
-            if (pressed) pressed.classList.remove('is-long-press');
+            const menu = pressed?.querySelector('details.admin-message-actions-menu');
+            if (menu) {
+                pressed.classList.remove('is-long-press');
+                menu.open = true;
+                positionAdminMessageMenu(menu);
+            }
             if (navigator.vibrate) navigator.vibrate(30);
-            requestMessageDelete(message);
         }, 550);
         event.target.addEventListener('touchmove', (moveEvent) => {
             const current = moveEvent.touches[0];
@@ -1258,16 +1281,24 @@ function AdminMessagesContent() {
     useEffect(() => {
         if (inboxMode !== 'platform' || !activeThreadId || !latestUnreadPlatformMessage) return;
         apiRequest(`/messages/threads/${latestUnreadPlatformMessage.threadId}/read${adminWorkspaceQuery}`, { method: 'POST', silentNotification: true, body: JSON.stringify({ senderId: Number(recipientOwnerId) }) })
-            .then(() => loadMessages())
-            .catch(() => {});
+            .then(async () => {
+                setMessages((current) => current.map((message) => message.threadId === latestUnreadPlatformMessage.threadId
+                    && message.senderRole === 'platform_owner'
+                    && message.senderEmail !== session?.email
+                    && String(message.senderId) === String(recipientOwnerId)
+                    ? { ...message, isRead: true }
+                    : message));
+                await loadMessages();
+            })
+            .catch((requestError) => setError(displayError(requestError, 'Could not mark this conversation as read.')));
     }, [adminWorkspaceQuery, inboxMode, activeThreadId, recipientOwnerId, latestUnreadPlatformMessage?.id, loadMessages]);
 
     useEffect(() => {
-        if (inboxMode !== 'visitors' || activeVisitor?.status !== 'new') return;
-        apiRequest(`/messages/visitors/${activeVisitor.id}/status`, {
-            method: 'PATCH', silentNotification: true, body: JSON.stringify({ status: 'open' })
-        }).then(() => loadMessages()).catch(() => {});
-    }, [inboxMode, activeVisitor?.id, activeVisitor?.status, loadMessages]);
+        if (inboxMode !== 'visitors' || !activeVisitor || activeVisitor.isRead || (window.matchMedia('(max-width: 768px)').matches && !mobilePlatformChatOpen)) return;
+        apiRequest(`/messages/visitors/${activeVisitor.id}/read`, { method: 'POST', silentNotification: true })
+            .then(() => loadMessages())
+            .catch((requestError) => setError(displayError(requestError, 'Could not mark this visitor message as read.')));
+    }, [inboxMode, activeVisitor?.id, activeVisitor?.isRead, mobilePlatformChatOpen, loadMessages]);
 
     async function sendMessage(event) {
         event.preventDefault();
@@ -1276,10 +1307,23 @@ function AdminMessagesContent() {
         const uploadedIds = [];
         try {
             if (inboxMode === 'visitors') {
-                const response = await apiRequest(`/messages/visitors/${activeVisitorId}/replies`, {
-                    method: 'POST', silentNotification: true, body: JSON.stringify({ body: body.trim() })
-                });
-                await responseJson(response, 'Could not send the visitor reply.');
+                if (editingVisitorReply) {
+                    const response = await apiRequest(`/messages/visitors/${activeVisitorId}/replies/${editingVisitorReply.id}`, {
+                        method: 'PATCH', silentNotification: true, body: JSON.stringify({ body: body.trim() })
+                    });
+                    await responseJson(response, 'Could not edit your saved reply.');
+                    setNotice('Saved reply updated in the shared history. The sent email cannot be recalled or changed.');
+                } else {
+                    const quotedMessage = replyTarget
+                        ? `> ${replyTarget.senderName}: ${(replyTarget.body || 'attachment').slice(0, 500)}\n\n`
+                        : '';
+                    const replyBody = `${quotedMessage}${body.trim().slice(0, Math.max(0, 3000 - quotedMessage.length))}`;
+                    const response = await apiRequest(`/messages/visitors/${activeVisitorId}/replies`, {
+                        method: 'POST', silentNotification: true,
+                        body: JSON.stringify({ body: replyBody })
+                    });
+                    await responseJson(response, 'Could not send the visitor reply.');
+                }
             } else if (editingMessage) {
                 const response = await apiRequest(withAdminWorkspace(`/messages/${editingMessage.id}`), {
                     method: 'PATCH', silentNotification: true, body: JSON.stringify({ body: body.trim() })
@@ -1297,6 +1341,7 @@ function AdminMessagesContent() {
             setPendingFiles([]);
             setReplyTarget(null);
             setEditingMessage(null);
+            setEditingVisitorReply(null);
             await loadMessages();
         } catch (requestError) {
             if (uploadedIds.length) {
@@ -1315,58 +1360,42 @@ function AdminMessagesContent() {
     }
 
     async function requestMessageDelete(message) {
-        const incoming = message.senderRole === 'platform_owner' && message.senderEmail !== session?.email;
-        const restricted = message.replyAllowed === false || message.replyAllowed === 0 || selectedSuperAdmin?.replyAllowed === false;
-        if (incoming && message.isHidden) {
-            if (window.confirm('Permanently delete this cleared message from your inbox? This cannot be undone.')) {
-                try { await deleteMessageFromInbox(message); }
-                catch (requestError) { setError(displayError(requestError, 'Could not permanently delete this message.')); }
-            }
-            return;
-        }
-        if (incoming && restricted) {
-            setDeleteCandidate(message);
-            setDeleteConfirmation('');
-            setDeleteError('');
-            return;
-        }
-        const prompt = incoming
-            ? 'Delete this message from your inbox? It will remain in the super-admin conversation.'
-            : 'Clear your sent message from the conversation?';
-        if (!window.confirm(prompt)) return;
-        try { await deleteMessageFromInbox(message); }
-        catch (requestError) { setError(displayError(requestError, 'Could not delete this message.')); }
+        setDeleteCandidate(message);
+        setDeleteConfirmation('');
+        setDeleteError('');
     }
 
     async function confirmDeleteMessage() {
-        if (!deleteCandidate || deleteConfirmation !== 'DELETE' || deletingMessage) return;
+        if (!deleteCandidate || deleteConfirmation !== 'delete' || deletingMessage) return;
         setDeletingMessage(true);
         try {
-            await deleteMessageFromInbox(deleteCandidate, 'DELETE');
+            await deleteMessageFromInbox(deleteCandidate, 'delete');
             setDeleteCandidate(null);
             setDeleteConfirmation('');
+            setNotice('Message deleted permanently for everyone.');
         } catch (requestError) { setDeleteError(displayError(requestError, 'Could not delete this message.')); }
         finally { setDeletingMessage(false); }
     }
 
     async function bulkClearPlatformMessages(event) {
         event.preventDefault();
-        if (!selectedPlatformMessageIdsVisible.length || bulkClearConfirmation !== 'DELETE' || bulkClearing) return;
+        const selectedIds = bulkClearMode === 'sent' ? selectedSentPlatformMessageIds : selectedReceivedPlatformMessageIds;
+        if (!selectedIds.length || bulkClearConfirmation !== 'delete' || bulkClearing) return;
         setBulkClearing(true);
         setError('');
         try {
-            const response = await apiRequest(withAdminWorkspace('/messages/bulk-clear'), {
+            const response = await apiRequest(withAdminWorkspace('/messages/bulk-clear-permanent'), {
                 method: 'DELETE', silentNotification: true,
-                body: JSON.stringify({ ids: selectedPlatformMessageIdsVisible, confirmation: 'DELETE' })
+                body: JSON.stringify({ ids: selectedIds, confirmation: 'delete' })
             });
-            const result = await responseJson(response, 'Could not clear the selected messages.');
+            const result = await responseJson(response, 'Could not permanently delete the selected messages.');
             setBulkClearOpen(false);
             setBulkClearConfirmation('');
             setSelectedPlatformMessageIds([]);
             setManagingPlatformMessages(false);
             await loadMessages();
-            setNotice(result.message || 'Selected messages cleared.');
-        } catch (requestError) { setError(displayError(requestError, 'Could not clear the selected messages.')); }
+            setNotice(result.message || 'Selected messages deleted permanently for everyone.');
+        } catch (requestError) { setError(displayError(requestError, 'Could not permanently delete the selected messages.')); }
         finally { setBulkClearing(false); }
     }
 
@@ -1380,7 +1409,7 @@ function AdminMessagesContent() {
     }
 
     async function deleteVisitorMessage() {
-        if (!activeVisitor || !window.confirm('Remove this visitor conversation from the inbox?')) return;
+        if (!activeVisitor || !window.confirm('Delete this visitor conversation from the shared inbox for all admins? This removes its saved replies too.')) return;
         try {
             const response = await apiRequest(`/messages/visitors/${activeVisitor.id}`, { method: 'DELETE', silentNotification: true });
             await responseJson(response, 'Could not remove this visitor message.');
@@ -1388,42 +1417,195 @@ function AdminMessagesContent() {
         } catch (requestError) { setError(displayError(requestError, 'Could not remove this visitor message.')); }
     }
 
+    async function deleteVisitorReply(message) {
+        if (!activeVisitor || !message.adminReply || message.senderEmail !== session?.email
+            || !window.confirm('Delete this saved reply for all admins? The already-sent email cannot be recalled.')) return;
+        try {
+            const response = await apiRequest(`/messages/visitors/${activeVisitor.id}/replies/${message.id}`, { method: 'DELETE', silentNotification: true });
+            const result = await responseJson(response, 'Could not delete your saved reply.');
+            setNotice(result.message || 'Saved reply deleted for all admins.');
+            await loadMessages();
+        } catch (requestError) {
+            setError(displayError(requestError, 'Could not delete your saved reply.'));
+        }
+    }
+
+    async function toggleVisitorReaction(message, emoji) {
+        if (!activeVisitor) return;
+        const path = message.visitor
+            ? `/messages/visitors/${activeVisitor.id}/reactions`
+            : `/messages/visitors/${activeVisitor.id}/replies/${message.id}/reactions`;
+        try {
+            const response = await apiRequest(path, { method: 'POST', silentNotification: true, body: JSON.stringify({ emoji }) });
+            const result = await responseJson(response, 'Could not update the reaction.');
+            setVisitorMessages((current) => current.map((conversation) => conversation.id !== activeVisitor.id ? conversation : message.visitor
+                ? { ...conversation, reactions: result.reactions || [] }
+                : { ...conversation, replies: conversation.replies.map((reply) => reply.id === message.id ? { ...reply, reactions: result.reactions || [] } : reply) }));
+        } catch (requestError) {
+            setError(displayError(requestError, 'Could not update the reaction.'));
+        }
+    }
+
+    async function togglePlatformMessageReaction(messageId, emoji) {
+        try {
+            const response = await apiRequest(withAdminWorkspace(`/messages/${messageId}/reactions`), {
+                method: 'POST', silentNotification: true, body: JSON.stringify({ emoji })
+            });
+            const result = await responseJson(response, 'Could not update the reaction.');
+            setMessages((current) => current.map((message) => message.id === messageId ? { ...message, reactions: result.reactions || [] } : message));
+        } catch (requestError) {
+            setError(displayError(requestError, 'Could not update the reaction.'));
+        }
+    }
+
+    async function copyPlatformMessage(message) {
+        if (!message.body) {
+            setError('There is no message text to copy.');
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(message.body || '');
+            setNotice('Message copied.');
+        } catch (requestError) {
+            setError(`Could not copy this message: ${requestError.message}`);
+        }
+    }
+
+    async function togglePlatformMessageFlag(messageId, flag, enabled) {
+        try {
+            const response = await apiRequest(withAdminWorkspace(`/messages/${messageId}/flags`), {
+                method: 'POST', silentNotification: true, body: JSON.stringify({ flag, enabled })
+            });
+            const result = await responseJson(response, 'Could not update this message.');
+            setMessages((current) => current.map((message) => message.id === messageId
+                ? { ...message, isPinned: result.isPinned, isStarred: result.isStarred }
+                : message));
+        } catch (requestError) {
+            setError(displayError(requestError, 'Could not update this message.'));
+        }
+    }
+
+    function beginForwardMessage(message) {
+        const available = superAdmins.find((admin) => admin.adminStatus === 'active' && admin.replyAllowed);
+        setForwardRecipientId(String(available?.id || ''));
+        setForwardMessage(message);
+    }
+
+    async function forwardMessageToSuperAdmin(event) {
+        event.preventDefault();
+        const recipient = superAdmins.find((admin) => String(admin.id) === String(forwardRecipientId) && admin.adminStatus === 'active' && admin.replyAllowed);
+        if (!forwardMessage || !recipient || forwardingMessage) return;
+        setForwardingMessage(true);
+        setError('');
+        try {
+            const attachmentNote = forwardMessage.attachments?.length ? `\n\n[${forwardMessage.attachments.length} attachment${forwardMessage.attachments.length === 1 ? '' : 's'} not included in this forwarded copy.]` : '';
+            const forwardedBody = `Forwarded from ${forwardMessage.senderName || forwardMessage.senderEmail || 'a conversation'}:\n\n${(forwardMessage.body || '[Attachment]').slice(0, 2800)}${attachmentNote}`;
+            const response = await apiRequest(withAdminWorkspace('/messages'), {
+                method: 'POST',
+                silentNotification: true,
+                body: JSON.stringify({ body: forwardedBody, recipientOwnerId: Number(recipient.id) })
+            });
+            await responseJson(response, 'Could not forward this message.');
+            setForwardMessage(null);
+            setInboxMode('platform');
+            setRecipientOwnerId(String(recipient.id));
+            setReplyTarget(null);
+            setEditingMessage(null);
+            setBody('');
+            setPendingFiles([]);
+            setMobilePlatformChatOpen(true);
+            setNotice(`Message forwarded to ${recipient.displayName}.`);
+            await loadMessages();
+        } catch (requestError) {
+            setError(displayError(requestError, 'Could not forward this message.'));
+        } finally {
+            setForwardingMessage(false);
+        }
+    }
+
     const visitorMessageThread = activeVisitor ? [
-        { id: `visitor-${activeVisitor.id}`, body: activeVisitor.message, senderName: activeVisitor.name, senderEmail: activeVisitor.email, createdAt: activeVisitor.createdAt, visitor: true },
+        { id: `visitor-${activeVisitor.id}`, body: activeVisitor.message, senderName: activeVisitor.name, senderEmail: activeVisitor.email, createdAt: activeVisitor.createdAt, visitor: true, reactions: activeVisitor.reactions || [] },
         ...(activeVisitor.replies || []).map((reply) => ({ ...reply, senderName: reply.adminName, senderEmail: reply.adminEmail, adminReply: true }))
     ] : [];
 
     return <div ref={messagePageRef} className="admin-messages-page">
         <section className="admin-heading admin-messages-heading"><div><p className="admin-eyebrow">MESSAGES &amp; ENQUIRIES</p><h1>Messages</h1><p className="admin-subheading">Choose an active super-admin to chat with, or manage portfolio visitor enquiries. Each super-admin can pause messages from your account.</p></div></section>
-        <nav className="admin-message-inbox-tabs" aria-label="Message inboxes"><button type="button" className={inboxMode === 'platform' ? 'active' : ''} onClick={() => { setInboxMode('platform'); setReplyTarget(null); setEditingMessage(null); setBody(''); }}><i className="fas fa-shield-halved" /> Super-admin chat <span>{messages.filter((message) => message.senderRole === 'platform_owner' && message.senderEmail !== session?.email && !message.isRead).length || ''}</span></button><button type="button" className={inboxMode === 'visitors' ? 'active' : ''} onClick={() => { setInboxMode('visitors'); setReplyTarget(null); setEditingMessage(null); setBody(''); setPendingFiles([]); }}><i className="fas fa-globe" /> Portfolio visitors <span>{visitorUnreadCount || ''}</span></button></nav>
         {error && <p className="admin-messages-error" role="alert">{error}</p>}
         {notice && <p className="admin-messages-notice" role="status" aria-live="polite">{notice}</p>}
-        {inboxMode === 'visitors' ? <section className="admin-panel admin-messages-panel has-threads visitor-inbox-panel">
-            <aside className="admin-message-threads visitor-message-threads"><h2>Visitor messages <span>{visitorMessages.length}</span></h2>{visitorMessages.length ? visitorMessages.map((item) => <button type="button" key={item.id} className={`${activeVisitorId === item.id ? 'active ' : ''}${item.status === 'new' ? 'has-unread' : ''}`} onClick={() => setActiveVisitorId(item.id)}><strong>{item.name}{item.status === 'new' && <span className="admin-message-unread-pill">New</span>}</strong><small>{item.email}</small><small>{new Date(item.createdAt).toLocaleDateString()} · {item.status === 'resolved' ? 'Resolved' : item.status === 'new' ? 'Unread' : 'Open'}</small><p>{item.message}</p></button>) : <p className="admin-message-empty">No visitor messages have arrived yet.</p>}</aside>
-            <div className="admin-message-conversation"><header><strong>{activeVisitor?.name || 'Visitor inbox'}</strong><small>{activeVisitor ? `${activeVisitor.email} · ${activeVisitor.phone}` : 'Messages sent from the portfolio contact form'}</small>{activeVisitor && <div className="admin-visitor-actions"><button type="button" onClick={() => updateVisitorStatus(activeVisitor.status === 'resolved' ? 'open' : 'resolved')}>{activeVisitor.status === 'resolved' ? 'Reopen' : 'Mark resolved'}</button><button type="button" className="danger" onClick={deleteVisitorMessage}>Delete</button></div>}</header>
-                <div ref={messageListRef} className="admin-message-list" aria-live="polite">{loading ? <p>Loading visitor messages…</p> : visitorMessageThread.length ? visitorMessageThread.slice().reverse().map((message) => <article key={message.id} className={message.adminReply ? 'sent' : 'received'} onTouchStart={startMessageLongPress(message)} onTouchEnd={cancelMessageLongPress} onTouchCancel={cancelMessageLongPress} onContextMenu={(event) => { if (window.matchMedia('(hover: none)').matches) event.preventDefault(); }}><small>{message.senderName} · {new Date(message.createdAt).toLocaleString()}</small><p>{message.body}</p>{message.visitor && <small className="admin-visitor-source">Portfolio contact form · Reply goes to {activeVisitor.email}</small>}</article>) : <p className="admin-message-empty">Select a visitor message to read and reply.</p>}</div>
-                <form className="admin-message-compose visitor-message-compose" onSubmit={sendMessage}><label className="sr-only" htmlFor="admin-message-body">Reply to visitor</label><textarea ref={messageBodyRef} id="admin-message-body" rows="3" maxLength="3000" value={body} onChange={(event) => setBody(event.target.value)} placeholder={activeVisitor ? `Reply to ${activeVisitor.name} by email…` : 'Select a visitor message first'} disabled={!activeVisitor || sending} required /><small className="admin-visitor-email-note">Your reply is emailed to the visitor and saved here in this conversation.</small><button className="admin-button primary" type="submit" disabled={!activeVisitor || sending || !body.trim()}><i className={`fas ${sending ? 'fa-spinner fa-spin' : 'fa-paper-plane'}`} /> {sending ? 'Sending…' : 'Send reply'}</button></form>
+        {inboxMode === 'visitors' ? <section className={`admin-panel admin-messages-panel has-threads admin-platform-chat visitor-inbox-panel${mobilePlatformChatOpen ? ' is-chat-open' : ''}`}>
+            <aside className="admin-message-threads admin-platform-threads" aria-label="Public contact conversations">
+              <nav className="admin-message-inbox-tabs" aria-label="Chat type">
+                <button type="button" className="active" aria-current="page"><i className="fas fa-users" /> Public{visitorUnreadCount > 0 && <span>{visitorUnreadCount}</span>}</button>
+                <button type="button" onClick={() => { setInboxMode('platform'); setReplyTarget(null); setEditingVisitorReply(null); setEditingMessage(null); setBody(''); setPendingFiles([]); setMobilePlatformChatOpen(false); setManagingPlatformMessages(false); setPlatformChatMinimized(false); }}><i className="fas fa-shield-halved" /> Super Admin</button>
+              </nav>
+              <h2>Contact messages <span>{matchingVisitorMessages.length}{visitorSearch ? ` of ${visitorMessages.length}` : ''}</span></h2>
+              <label className="admin-message-search"><i className="fas fa-magnifying-glass" /><input type="search" value={visitorSearchInput} onChange={(event) => setVisitorSearchInput(event.target.value)} placeholder="Search contacts or messages" aria-label="Search contact conversations" /></label>
+              {matchingVisitorMessages.length ? matchingVisitorMessages.map((item) => <button type="button" key={item.id} className={`${activeVisitorId === item.id ? 'active ' : ''}${!item.isRead ? 'has-unread' : ''}`} aria-label={`Contact message from ${item.name}${!item.isRead ? ', unread' : ''}`} onClick={() => { setActiveVisitorId(item.id); setReplyTarget(null); setEditingVisitorReply(null); setBody(''); setMobilePlatformChatOpen(true); }}>
+                <span className="admin-platform-avatar">{item.name?.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()}</span>
+                <span className="admin-platform-thread-copy"><strong>{item.name}{!item.isRead && <span className="admin-message-unread-pill" aria-label="1 unread visitor message">1</span>}</strong><small>{item.email}</small><small>{new Date(item.createdAt).toLocaleDateString()} · {item.status === 'resolved' ? 'Resolved' : !item.isRead ? 'Unread' : 'Open'}</small><small>{item.message}</small></span>
+              </button>) : <p className="admin-message-empty">No visitor messages have arrived yet.</p>}
+            </aside>
+            <div className="admin-message-conversation">
+              <header><button type="button" className="admin-platform-chat-back" onClick={() => { setMobilePlatformChatOpen(false); setReplyTarget(null); }}><i className="fas fa-arrow-left" /> Chats</button><span className="admin-platform-avatar">{activeVisitor?.name?.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || <i className="fas fa-user" />}</span><div className="admin-platform-conversation-copy"><strong>{activeVisitor?.name || 'Contact messages'}</strong><small>{activeVisitor ? `${activeVisitor.email} · ${activeVisitor.phone}` : 'Messages sent from the portfolio contact form'}</small></div>{activeVisitor && <div className="admin-visitor-actions"><button type="button" onClick={() => updateVisitorStatus(activeVisitor.status === 'resolved' ? 'open' : 'resolved')}>{activeVisitor.status === 'resolved' ? 'Reopen' : 'Mark resolved'}</button><button type="button" className="danger" onClick={deleteVisitorMessage}>Delete conversation</button></div>}</header>
+              <div ref={messageListRef} className="admin-message-list" aria-live="polite">{loading ? <p>Loading visitor messages…</p> : visitorMessageThread.length ? visitorMessageThread.map((message) => <article key={message.id} className={message.adminReply ? 'sent' : 'received'} onTouchStart={startMessageLongPress(message)} onTouchEnd={cancelMessageLongPress} onTouchCancel={cancelMessageLongPress} onContextMenu={(event) => { if (window.matchMedia('(hover: none)').matches) event.preventDefault(); }}>
+                <small>{message.senderName} · {new Date(message.createdAt).toLocaleString()}</small><p>{message.body}</p>{message.visitor && <small className="admin-visitor-source">Portfolio contact form · Reply goes to {activeVisitor.email}</small>}
+                {message.reactions?.length > 0 && <div className="admin-message-reactions">{message.reactions.map((reaction) => <button key={reaction.emoji} type="button" className={reaction.reacted ? 'is-reacted' : ''} aria-label={`${reaction.emoji}, ${reaction.count} reactions`} onClick={() => toggleVisitorReaction(message, reaction.emoji)}>{reaction.emoji} {reaction.count}</button>)}</div>}
+                <details className="admin-message-actions-menu" onToggle={handleAdminMessageMenuToggle}><summary aria-label={`Actions for message from ${message.senderName}`} title="Message actions"><i className="fas fa-ellipsis" /></summary><div role="menu" aria-label="Message actions">
+                  <button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; setEditingVisitorReply(null); setReplyTarget(message); setBody(''); messageBodyRef.current?.focus(); }}><i className="fas fa-reply" /> Reply</button>
+                  <button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; beginForwardMessage(message); }}><i className="fas fa-share" /> Forward</button>
+                  <div className="admin-message-reaction-options" role="group" aria-label="Add reaction">{messageReactionOptions.map((emoji) => <button key={emoji} type="button" role="menuitem" aria-label={`React with ${emoji}`} onClick={(event) => { event.currentTarget.closest('details').open = false; toggleVisitorReaction(message, emoji); }}>{emoji}</button>)}</div>
+                  {message.adminReply && message.senderEmail === session?.email && <><button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; setReplyTarget(null); setEditingVisitorReply(message); setBody(message.body); messageBodyRef.current?.focus(); }}><i className="fas fa-pen" /> Edit saved reply</button><button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; deleteVisitorReply(message); }}><i className="fas fa-trash" /> Delete for everyone</button></>}
+                  {message.visitor && <button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; deleteVisitorMessage(); }}><i className="fas fa-trash" /> Delete for everyone</button>}
+                </div></details>
+              </article>) : <p className="admin-message-empty">Select a contact message to read and reply.</p>}</div>
+              <form className="admin-message-compose visitor-message-compose" onSubmit={sendMessage}>
+                {replyTarget && <div className="admin-message-replying-to"><span><i className="fas fa-reply" /> Replying to {replyTarget.senderName}: {replyTarget.body.slice(0, 90)}</span><button type="button" onClick={() => setReplyTarget(null)} aria-label="Cancel reply"><i className="fas fa-xmark" /></button></div>}
+                {editingVisitorReply && <div className="admin-message-replying-to"><span><i className="fas fa-pen" /> Editing your saved reply</span><button type="button" onClick={() => { setEditingVisitorReply(null); setBody(''); }} aria-label="Cancel editing"><i className="fas fa-xmark" /></button></div>}
+                <label className="sr-only" htmlFor="admin-message-body">{editingVisitorReply ? 'Edit saved reply' : 'Reply to visitor'}</label><textarea ref={messageBodyRef} id="admin-message-body" rows="3" maxLength="3000" value={body} onChange={(event) => setBody(event.target.value)} placeholder={activeVisitor ? editingVisitorReply ? 'Edit saved reply…' : `Reply to ${activeVisitor.name} by email…` : 'Select a visitor message first'} disabled={!activeVisitor || sending} required />
+                <small className="admin-visitor-email-note">{editingVisitorReply ? 'Edits update the saved chat history only; email already delivered cannot be changed.' : 'Your reply is emailed to the visitor and saved here in this shared conversation.'}</small>
+                <button className="admin-button primary" type="submit" disabled={!activeVisitor || sending || !body.trim()}><i className={`fas ${sending ? 'fa-spinner fa-spin' : editingVisitorReply ? 'fa-check' : 'fa-paper-plane'}`} /> {sending ? 'Saving…' : editingVisitorReply ? 'Save edit' : 'Send reply'}</button>
+              </form>
             </div>
-        </section> : <section className={`admin-panel admin-messages-panel has-threads admin-platform-chat${mobilePlatformChatOpen ? ' is-chat-open' : ''}`}>
-            <aside className="admin-message-threads admin-platform-threads" aria-label="Super-admin conversations"><h2>Super-admin chats <span>{superAdmins.length}</span></h2>{superAdminConversations.length ? superAdminConversations.map(({ admin, lastMessage, unread }) => <button type="button" key={admin.id} className={`${String(recipientOwnerId) === String(admin.id) ? 'active ' : ''}${unread ? 'has-unread' : ''}${admin.adminStatus !== 'active' ? ' is-inactive' : ''}${!admin.replyAllowed ? ' is-muted' : ''}`} aria-label={`${admin.displayName}, ${admin.adminStatus !== 'active' ? 'inactive' : admin.replyAllowed ? 'available to message' : 'has muted your account'}${unread ? `, ${unread} unread messages` : ''}`} onClick={() => { setRecipientOwnerId(String(admin.id)); setReplyTarget(null); setEditingMessage(null); setBody(''); setMobilePlatformChatOpen(true); setManagingPlatformMessages(false); setSelectedPlatformMessageIds([]); }}><span className="admin-platform-avatar">{admin.displayName?.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()}</span><span className="admin-platform-thread-copy"><strong>{admin.displayName}</strong><small>{admin.adminStatus !== 'active' ? 'Inactive account' : !admin.replyAllowed ? 'Muted your account' : 'Available to message'}</small><small>{!lastMessage ? admin.email : lastMessage.isHidden || lastMessage.deletedAt ? 'Message cleared' : lastMessage.body || (lastMessage.attachments?.length ? 'Attachment' : 'Message')}</small></span>{unread > 0 && <span className="admin-platform-unread">{unread}</span>}</button>) : <p className="admin-message-empty">No super-admin accounts are available.</p>}</aside>
-            <div className="admin-message-conversation"><header><button type="button" className="admin-platform-chat-back" onClick={() => { messagePageRef.current?.querySelectorAll('.admin-message-actions-menu[open]').forEach((menu) => { menu.open = false; }); setManagingPlatformMessages(false); setSelectedPlatformMessageIds([]); setMobilePlatformChatOpen(false); }}><i className="fas fa-arrow-left" /> Chats</button><span className="admin-platform-avatar">{selectedSuperAdmin?.displayName?.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'SA'}</span><div className="admin-platform-conversation-copy"><strong>{selectedSuperAdmin?.displayName || 'Select a super-admin'}</strong><small>{selectedSuperAdmin ? `${selectedSuperAdmin.email} · ${selectedSuperAdmin.adminStatus !== 'active' ? 'Inactive' : selectedSuperAdmin.replyAllowed ? 'Available to message' : 'Muted your account'}` : 'No super-admin contact is available.'}</small></div><button type="button" className="admin-platform-manage-toggle" disabled={!selectablePlatformMessages.length} onClick={() => { messagePageRef.current?.querySelectorAll('.admin-message-actions-menu[open]').forEach((menu) => { menu.open = false; }); setManagingPlatformMessages((current) => !current); setSelectedPlatformMessageIds([]); }}>{managingPlatformMessages ? 'Done' : 'Manage'}</button></header>
-                {managingPlatformMessages && <div className="admin-platform-bulk-actions"><button type="button" className={!allPlatformMessagesSelected ? 'is-active' : ''} disabled={!selectablePlatformMessages.length} onClick={() => setSelectedPlatformMessageIds([])}>Select manually</button><button type="button" className={allPlatformMessagesSelected ? 'is-active' : ''} disabled={!selectablePlatformMessages.length} onClick={() => setSelectedPlatformMessageIds(selectablePlatformMessages.map((message) => message.id))}>Select all</button><span>{selectedPlatformMessageIdsVisible.length} selected</span><button type="button" className="danger" disabled={!selectedPlatformMessageIdsVisible.length} onClick={() => { setBulkClearConfirmation(''); setBulkClearOpen(true); }}>Clear selected</button></div>}
-                <div ref={messageListRef} className="admin-message-list" aria-live="polite">{loading ? <p>Loading messages…</p> : activeMessages.length ? activeMessagesNewestFirst.map((message) => <article key={message.id} onTouchStart={startMessageLongPress(message)} onTouchEnd={cancelMessageLongPress} onTouchCancel={cancelMessageLongPress} onContextMenu={(event) => { if (window.matchMedia('(hover: none)').matches) event.preventDefault(); }} className={`${message.senderId === session?.id || message.senderEmail === session?.email ? 'sent' : 'received'}${message.senderRole === 'platform_owner' && !message.isRead && !message.isHidden ? ' is-unread' : ''}${message.isHidden ? ' is-cleared' : ''}`}>
+        </section> : <section className={`admin-panel admin-messages-panel has-threads admin-platform-chat${mobilePlatformChatOpen ? ' is-chat-open' : ''}${platformChatMinimized ? ' is-chat-minimized' : ''}`}>
+            <aside className="admin-message-threads admin-platform-threads" aria-label="Administrator chat navigation">
+              <nav className="admin-message-inbox-tabs" aria-label="Chat type">
+                <button type="button" onClick={() => { setInboxMode('visitors'); setReplyTarget(null); setEditingVisitorReply(null); setEditingMessage(null); setBody(''); setPendingFiles([]); setMobilePlatformChatOpen(false); setManagingPlatformMessages(false); setPlatformChatMinimized(false); }}><i className="fas fa-users" /> Public{visitorUnreadCount > 0 && <span>{visitorUnreadCount}</span>}</button>
+                <button type="button" className={inboxMode === 'platform' ? 'active' : ''} onClick={() => { setInboxMode('platform'); setReplyTarget(null); setEditingMessage(null); setBody(''); setPendingFiles([]); setMobilePlatformChatOpen(false); setManagingPlatformMessages(false); setPlatformChatMinimized(false); }}><i className="fas fa-shield-halved" /> Super Admin</button>
+              </nav>
+              <h2>Super-admin chats <span>{superAdminConversations.length}{superAdminSearch ? ` of ${superAdmins.length}` : ''}</span></h2>
+              <label className="admin-message-search"><i className="fas fa-magnifying-glass" /><input type="search" value={superAdminSearchInput} onChange={(event) => setSuperAdminSearchInput(event.target.value)} placeholder="Find a super-admin" aria-label="Search super-admin chats" /></label>
+              {superAdminConversations.length ? superAdminConversations.map(({ admin, lastMessage, unread }) => <button type="button" key={admin.id} className={`${String(recipientOwnerId) === String(admin.id) ? 'active ' : ''}${unread ? 'has-unread' : ''}${admin.adminStatus !== 'active' ? ' is-inactive' : ''}${!admin.replyAllowed ? ' is-muted' : ''}`} aria-label={`${admin.displayName}, ${admin.adminStatus !== 'active' ? 'inactive' : admin.replyAllowed ? 'available to message' : 'has muted your account'}${unread ? `, ${unread} unread messages` : ''}`} onClick={() => { setRecipientOwnerId(String(admin.id)); setReplyTarget(null); setEditingMessage(null); setBody(''); setMobilePlatformChatOpen(true); setManagingPlatformMessages(false); setSelectedPlatformMessageIds([]); setPlatformChatMinimized(false); }}><span className="admin-platform-avatar">{admin.displayName?.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()}</span><span className="admin-platform-thread-copy"><strong><i className="fas fa-shield-halved admin-super-admin-mark" aria-label="Super admin" /> {admin.displayName}{unread > 0 && <span className="admin-platform-unread">{unread}</span>}</strong><small>{admin.adminStatus !== 'active' ? 'Inactive account' : !admin.replyAllowed ? 'Muted your account' : 'Available to message'}</small><small>{!lastMessage ? admin.email : lastMessage.isHidden || lastMessage.deletedAt ? 'Message cleared' : lastMessage.body || (lastMessage.attachments?.length ? 'Attachment' : 'Message')}</small></span></button>) : <p className="admin-message-empty">{superAdmins.length ? 'No super-admins match your search.' : 'No super-admin accounts are available.'}</p>}
+            </aside>
+            <div className={`admin-message-conversation${platformChatMinimized ? ' is-chat-minimized' : ''}`}><header><button type="button" className="admin-platform-chat-back" onClick={() => { messagePageRef.current?.querySelectorAll('.admin-message-actions-menu[open]').forEach((menu) => { menu.open = false; }); setManagingPlatformMessages(false); setSelectedPlatformMessageIds([]); setMobilePlatformChatOpen(false); }}><i className="fas fa-arrow-left" /> Chats</button><span className="admin-platform-avatar">{selectedSuperAdmin?.displayName?.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'SA'}</span><div className="admin-platform-conversation-copy"><strong>{selectedSuperAdmin?.displayName || 'Select a super-admin'}</strong><small>{selectedSuperAdmin ? `${selectedSuperAdmin.email} · ${selectedSuperAdmin.adminStatus !== 'active' ? 'Inactive' : selectedSuperAdmin.replyAllowed ? 'Available to message' : 'Muted your account'}` : 'No super-admin contact is available.'}</small><small className="admin-platform-message-count">{activeMessages.length} {activeMessages.length === 1 ? 'message' : 'messages'} in this conversation</small></div><button type="button" className="admin-platform-minimize-toggle" aria-label={platformChatMinimized ? 'Restore chat' : 'Minimize chat'} title={platformChatMinimized ? 'Restore chat' : 'Minimize chat'} onClick={() => setPlatformChatMinimized((current) => !current)}><i className={`fas ${platformChatMinimized ? 'fa-window-maximize' : 'fa-window-minimize'}`} /></button><button type="button" className="admin-platform-manage-toggle" onClick={() => { messagePageRef.current?.querySelectorAll('.admin-message-actions-menu[open]').forEach((menu) => { menu.open = false; }); setManagingPlatformMessages((current) => !current); setSelectedPlatformMessageIds([]); }}>{managingPlatformMessages ? 'Done' : 'Manage'}</button></header>
+                {managingPlatformMessages && <div className="admin-platform-bulk-actions"><button type="button" className={!allPlatformMessagesSelected ? 'is-active' : ''} disabled={!selectablePlatformMessages.length} onClick={() => setSelectedPlatformMessageIds([])}>Select manually</button><button type="button" className={allPlatformMessagesSelected ? 'is-active' : ''} disabled={!selectablePlatformMessages.length} onClick={() => setSelectedPlatformMessageIds(selectablePlatformMessages.map((message) => message.id))}>Select all</button><span>{selectedPlatformMessageIdsVisible.length} selected · {selectedSentPlatformMessageIds.length} sent · {selectedReceivedPlatformMessageIds.length} received</span><button type="button" className="danger" disabled={!selectedSentPlatformMessageIds.length} onClick={() => { setBulkClearMode('sent'); setBulkClearConfirmation(''); setBulkClearOpen(true); }}>Delete sent for everyone</button><button type="button" className="danger secondary" disabled={!selectedReceivedPlatformMessageIds.length} onClick={() => { setBulkClearMode('received'); setBulkClearConfirmation(''); setBulkClearOpen(true); }}>Delete received for everyone</button></div>}
+                <div ref={messageListRef} className="admin-message-list" aria-live="polite">{loading ? <p>Loading messages…</p> : activeMessages.length ? activeMessages.map((message) => <article key={message.id} onTouchStart={startMessageLongPress(message)} onTouchEnd={cancelMessageLongPress} onTouchCancel={cancelMessageLongPress} onContextMenu={(event) => { if (window.matchMedia('(hover: none)').matches) event.preventDefault(); }} className={`${message.senderId === session?.id || message.senderEmail === session?.email ? 'sent' : 'received'}${message.senderRole === 'platform_owner' && !message.isRead && !message.isHidden ? ' is-unread' : ''}${message.isHidden ? ' is-cleared' : ''}`}>
                     <small>{message.senderName || message.senderEmail} · {new Date(message.createdAt).toLocaleString()}{message.senderRole === 'platform_owner' && message.senderEmail !== session?.email && !message.isRead && !message.isHidden && <strong className="admin-message-unread-label"> · New</strong>}</small>
                     {managingPlatformMessages && selectablePlatformMessages.some((item) => String(item.id) === String(message.id)) && <label className="admin-platform-message-select"><input type="checkbox" checked={selectedPlatformMessageIdsVisible.some((id) => String(id) === String(message.id))} aria-label={`Select message from ${message.senderName || message.senderEmail}`} onChange={(event) => setSelectedPlatformMessageIds((current) => event.target.checked ? [...current, message.id] : current.filter((id) => String(id) !== String(message.id)))} /></label>}
                     {message.replyToMessageId && <small className="admin-message-reply-context"><i className="fas fa-reply" /> Reply to a message</small>}
-                    {message.isHidden ? <p className="admin-message-deleted"><i className="fas fa-trash-can" aria-hidden="true" /> You cleared this message. Delete it permanently?</p> : message.deletedAt ? <p className="admin-message-deleted">This message was cleared</p> : <>
-                        <p>{message.body}</p><MessageAttachmentList attachments={message.attachments} />{message.editedAt && <small className="admin-message-edited">Edited</small>}{(message.senderId === session?.id || message.senderEmail === session?.email) && <small className="admin-message-delivery" title={message.isDelivered ? 'Delivered to the recipient inbox' : 'Sent; waiting for the recipient to open the chat'}><i className={`fas ${message.isDelivered ? 'fa-check-double' : 'fa-check'}`} aria-hidden="true" /> {message.isDelivered ? 'Delivered' : 'Sent'}</small>}
+                    {message.isHidden ? <><p className="admin-message-deleted"><i className="fas fa-trash-can" aria-hidden="true" /> You cleared this message.</p><button type="button" className="admin-message-remove-hidden" onClick={() => requestMessageDelete(message)}>Delete permanently from inbox</button></> : message.deletedAt ? <p className="admin-message-deleted">This message was cleared</p> : <>
+                        {(message.isPinned || message.isStarred) && <small className="admin-message-flags">{message.isPinned && <span><i className="fas fa-thumbtack" /> Pinned</span>}{message.isStarred && <span><i className="fas fa-star" /> Starred</span>}</small>}
+                        <p>{message.body}</p><MessageAttachmentList attachments={message.attachments} />{message.editedAt && <small className="admin-message-edited">Edited</small>}{message.reactions?.length > 0 && <div className="admin-message-reactions">{message.reactions.map((reaction) => <button key={reaction.emoji} type="button" className={reaction.reacted ? 'is-reacted' : ''} aria-label={`${reaction.emoji}, ${reaction.count} reactions`} onClick={() => togglePlatformMessageReaction(message.id, reaction.emoji)}>{reaction.emoji} {reaction.count}</button>)}</div>}{(message.senderId === session?.id || message.senderEmail === session?.email) && <small className="admin-message-delivery" title={message.isDelivered ? 'Delivered to the recipient inbox' : 'Sent; waiting for the recipient to open the chat'}><i className={`fas ${message.isDelivered ? 'fa-check-double' : 'fa-check'}`} aria-hidden="true" /> {message.isDelivered ? 'Delivered' : 'Sent'}</small>}
                         {message.senderRole === 'platform_owner' && message.senderEmail !== session?.email && <><small className={`admin-message-reply-status${message.replyAllowed === false || message.replyAllowed === 0 ? ' is-disabled' : ''}`}><i className={`fas ${message.replyAllowed === false || message.replyAllowed === 0 ? 'fa-lock' : 'fa-reply'}`} aria-hidden="true" /> {message.replyAllowed === false || message.replyAllowed === 0 ? 'Replies are not allowed' : 'You can reply to this message'}</small><button type="button" className="admin-message-reply-button" disabled={managingPlatformMessages || message.replyAllowed === false || message.replyAllowed === 0 || selectedSuperAdmin?.replyAllowed === false || selectedSuperAdmin?.adminStatus !== 'active'} title={managingPlatformMessages ? 'Finish managing messages to reply' : message.replyAllowed === false || message.replyAllowed === 0 ? 'Replies are disabled for this message' : selectedSuperAdmin?.replyAllowed === false ? 'This super-admin has muted your account' : selectedSuperAdmin?.adminStatus !== 'active' ? 'This super-admin account is inactive' : 'Reply to this message'} onClick={() => { setEditingMessage(null); setRecipientOwnerId(String(message.senderId)); setReplyTarget(message); setMobilePlatformChatOpen(true); messageBodyRef.current?.focus(); }}><i className="fas fa-reply" aria-hidden="true" /> Reply</button></>}
-                        {!managingPlatformMessages && message.senderEmail === session?.email && <details className="admin-message-actions-menu" onToggle={handleAdminMessageMenuToggle}><summary aria-label="Message actions" title="Message actions"><i className="fas fa-ellipsis" /></summary><div role="menu"><button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; setReplyTarget(null); setEditingMessage(message); setBody(message.body); messageBodyRef.current?.focus(); }}><i className="fas fa-pen" /> Edit message</button><button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; requestMessageDelete(message); }}><i className="fas fa-trash" /> Clear sent message</button></div></details>}
+                        {!managingPlatformMessages && <details className="admin-message-actions-menu" onToggle={handleAdminMessageMenuToggle}><summary aria-label="Message actions" title="Message actions"><i className="fas fa-ellipsis" /></summary><div role="menu">
+                          <div className="admin-message-reaction-options" role="group" aria-label="Add reaction">{messageReactionOptions.map((emoji) => <button key={emoji} type="button" role="menuitem" aria-label={`React with ${emoji}`} onClick={(event) => { event.currentTarget.closest('details').open = false; togglePlatformMessageReaction(message.id, emoji); }}>{emoji}</button>)}</div>
+                          <button type="button" role="menuitem" disabled={message.senderRole === 'platform_owner' && message.replyAllowed === false} onClick={(event) => { event.currentTarget.closest('details').open = false; setEditingMessage(null); setRecipientOwnerId(String(message.senderRole === 'platform_owner' ? message.senderId : recipientOwnerId)); setReplyTarget(message); setMobilePlatformChatOpen(true); messageBodyRef.current?.focus(); }}><i className="fas fa-reply" /> Reply</button>
+                          <button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; copyPlatformMessage(message); }}><i className="fas fa-copy" /> Copy</button>
+                          <button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; beginForwardMessage(message); }}><i className="fas fa-share" /> Forward</button>
+                          <button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; togglePlatformMessageFlag(message.id, 'pin', !message.isPinned); }}><i className="fas fa-thumbtack" /> {message.isPinned ? 'Unpin' : 'Pin'}</button>
+                          <button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; togglePlatformMessageFlag(message.id, 'star', !message.isStarred); }}><i className="fas fa-star" /> {message.isStarred ? 'Unstar' : 'Star'}</button>
+                          {selectablePlatformMessages.some((item) => String(item.id) === String(message.id)) && <button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; setManagingPlatformMessages(true); setSelectedPlatformMessageIds((current) => current.some((id) => String(id) === String(message.id)) ? current : [...current, message.id]); }}><i className="far fa-square-check" /> Select</button>}
+                          <div className="admin-message-reaction-options" role="group" aria-label="Add reaction">{messageReactionOptions.map((emoji) => <button key={emoji} type="button" role="menuitem" aria-label={`React with ${emoji}`} onClick={(event) => { event.currentTarget.closest('details').open = false; togglePlatformMessageReaction(message.id, emoji); }}>{emoji}</button>)}</div>
+                          {message.senderEmail === session?.email && <><button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; setReplyTarget(null); setEditingMessage(message); setBody(message.body); messageBodyRef.current?.focus(); }}><i className="fas fa-pen" /> Edit message</button><button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; requestMessageDelete(message); }}><i className="fas fa-trash" /> Delete for everyone</button></>}
+                          {message.senderRole === 'platform_owner' && message.senderEmail !== session?.email && <button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; requestMessageDelete(message); }}><i className="fas fa-trash" /> Delete for everyone</button>}
+                        </div></details>}
                     </>}
-                    {!managingPlatformMessages && message.senderRole === 'platform_owner' && message.senderEmail !== session?.email && !message.deletedAt && <details className="admin-message-actions-menu" onToggle={handleAdminMessageMenuToggle}><summary aria-label="Message actions" title="Message actions"><i className="fas fa-ellipsis" /></summary><div role="menu"><button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; requestMessageDelete(message); }}><i className="fas fa-trash" /> {message.isHidden ? 'Delete permanently' : 'Remove from my inbox'}</button></div></details>}
                 </article>) : <p className="admin-message-empty">{selectedSuperAdmin ? 'No messages in this conversation yet.' : 'Start a conversation with a super-admin.'}</p>}</div>
                 <form className="admin-message-compose" onSubmit={sendMessage}>{(replyTarget || editingMessage) && <div className="admin-message-replying-to"><span><i className={`fas ${editingMessage ? 'fa-pen' : 'fa-reply'}`} /> {editingMessage ? 'Editing your sent message' : `Replying to ${replyTarget.senderName || 'super-admin'}: ${(replyTarget.body || 'attachment').slice(0, 90)}`}</span><button type="button" onClick={() => { setReplyTarget(null); setEditingMessage(null); setBody(''); }} aria-label="Cancel reply or edit"><i className="fas fa-xmark" /></button></div>}{replyPermissionDenied && <p className="admin-message-reply-paused">{!selectedSuperAdmin ? 'Select a super-admin to start a conversation.' : selectedSuperAdmin.adminStatus !== 'active' ? 'This super-admin account is inactive.' : selectedSuperAdmin.replyAllowed === false ? 'This super-admin has muted your account. You can still read the conversation.' : 'Replies are disabled for this message.'}</p>}<label className="sr-only" htmlFor="admin-message-body">Write a message</label><textarea ref={messageBodyRef} id="admin-message-body" rows="3" maxLength="3000" value={body} onChange={(event) => setBody(event.target.value)} placeholder={editingMessage ? 'Correct your message…' : replyTarget ? 'Write your reply…' : 'Write your message…'} disabled={replyPermissionDenied || sending} required={!pendingFiles.length} /><MessageAttachmentPicker files={pendingFiles} onFilesChange={setPendingFiles} disabled={sending || Boolean(editingMessage) || replyPermissionDenied} onError={setError} /><button className="admin-button primary" type="submit" disabled={sending || replyPermissionDenied || (!body.trim() && !pendingFiles.length) || (!editingMessage && !recipientOwnerId)}><i className={`fas ${sending ? 'fa-spinner fa-spin' : editingMessage ? 'fa-check' : 'fa-paper-plane'}`} /> {sending ? 'Sending…' : editingMessage ? 'Save edit' : 'Send'}</button></form>
             </div>
         </section>}
-        {bulkClearOpen && <div className="admin-message-delete-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !bulkClearing) { setBulkClearOpen(false); setBulkClearConfirmation(''); } }}><form className="admin-message-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="bulk-clear-message-title" onSubmit={bulkClearPlatformMessages}><span className="admin-message-delete-icon"><i className="fas fa-trash" aria-hidden="true" /></span><h2 id="bulk-clear-message-title">Clear selected messages?</h2><p>Your sent messages will be cleared from the conversation. Super-admin messages will be removed from your inbox only. Type <strong>DELETE</strong> to confirm this action for {selectedPlatformMessageIdsVisible.length} selected message{selectedPlatformMessageIdsVisible.length === 1 ? '' : 's'}.</p><label htmlFor="bulk-clear-message-confirmation">Type DELETE</label><input id="bulk-clear-message-confirmation" autoFocus autoComplete="off" value={bulkClearConfirmation} onChange={(event) => setBulkClearConfirmation(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape' && !bulkClearing) { setBulkClearOpen(false); setBulkClearConfirmation(''); } }} /><div className="admin-message-delete-actions"><button type="button" onClick={() => { setBulkClearOpen(false); setBulkClearConfirmation(''); }} disabled={bulkClearing}>Cancel</button><button type="submit" className="danger" disabled={bulkClearConfirmation !== 'DELETE' || bulkClearing}>{bulkClearing ? 'Clearing…' : 'Confirm clear'}</button></div></form></div>}
-        {deleteCandidate && <div className="admin-message-delete-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !deletingMessage) { setDeleteCandidate(null); setDeleteConfirmation(''); } }}><section className="admin-message-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-message-title"><span className="admin-message-delete-icon"><i className="fas fa-trash" aria-hidden="true" /></span><h2 id="delete-message-title">Confirm to delete this message</h2><p>{deleteCandidate.senderRole === 'platform_owner' ? 'This message will be removed from your inbox.' : 'This will clear your sent message from the conversation.'} Type <strong>DELETE</strong> to enable confirmation.</p>{deleteError && <p className="admin-message-delete-error" role="alert">{deleteError}</p>}<label htmlFor="delete-message-confirmation">Type DELETE</label><input id="delete-message-confirmation" autoFocus value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape' && !deletingMessage) { setDeleteCandidate(null); setDeleteConfirmation(''); } }} autoComplete="off" /><div className="admin-message-delete-actions"><button type="button" onClick={() => { setDeleteCandidate(null); setDeleteConfirmation(''); }} disabled={deletingMessage}>Cancel</button><button type="button" className="danger" onClick={confirmDeleteMessage} disabled={deleteConfirmation !== 'DELETE' || deletingMessage}>{deletingMessage ? 'Deleting…' : 'Confirm delete'}</button></div></section></div>}
+        {bulkClearOpen && <div className="admin-message-delete-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !bulkClearing) { setBulkClearOpen(false); setBulkClearConfirmation(''); } }}><form className="admin-message-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="bulk-clear-message-title" onSubmit={bulkClearPlatformMessages}><span className="admin-message-delete-icon"><i className="fas fa-trash" aria-hidden="true" /></span><h2 id="bulk-clear-message-title">Delete selected {bulkClearMode} messages for everyone?</h2><p>This permanently deletes {bulkClearMode === 'sent' ? selectedSentPlatformMessageIds.length : selectedReceivedPlatformMessageIds.length} selected {bulkClearMode} message{(bulkClearMode === 'sent' ? selectedSentPlatformMessageIds.length : selectedReceivedPlatformMessageIds.length) === 1 ? '' : 's'} and their attachments for all participants. This cannot be undone. Type delete to confirm.</p><label htmlFor="bulk-clear-message-confirmation">Type delete</label><input id="bulk-clear-message-confirmation" autoFocus autoComplete="off" value={bulkClearConfirmation} onChange={(event) => setBulkClearConfirmation(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape' && !bulkClearing) { setBulkClearOpen(false); setBulkClearConfirmation(''); } }} /><div className="admin-message-delete-actions"><button type="button" onClick={() => { setBulkClearOpen(false); setBulkClearConfirmation(''); }} disabled={bulkClearing}>Cancel</button><button type="submit" className="danger" disabled={bulkClearConfirmation !== 'delete' || bulkClearing}>{bulkClearing ? 'Working…' : 'Delete for everyone'}</button></div></form></div>}
+        {deleteCandidate && <div className="admin-message-delete-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !deletingMessage) { setDeleteCandidate(null); setDeleteConfirmation(''); } }}><section className="admin-message-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-message-title"><span className="admin-message-delete-icon"><i className="fas fa-trash" aria-hidden="true" /></span><h2 id="delete-message-title">Delete this message for everyone?</h2><p>This permanently deletes this message and its attachments from both participants. This cannot be undone. Type <strong>delete</strong> to confirm.</p>{deleteError && <p className="admin-message-delete-error" role="alert">{deleteError}</p>}<label htmlFor="delete-message-confirmation">Type delete</label><input id="delete-message-confirmation" autoFocus value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape' && !deletingMessage) { setDeleteCandidate(null); setDeleteConfirmation(''); } }} autoComplete="off" /><div className="admin-message-delete-actions"><button type="button" onClick={() => { setDeleteCandidate(null); setDeleteConfirmation(''); }} disabled={deletingMessage}>Cancel</button><button type="button" className="danger" onClick={confirmDeleteMessage} disabled={deleteConfirmation !== 'delete' || deletingMessage}>{deletingMessage ? 'Deleting…' : 'Confirm delete'}</button></div></section></div>}
+        {forwardMessage && <div className="admin-message-delete-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !forwardingMessage) setForwardMessage(null); }}><form className="admin-message-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="forward-message-title" onSubmit={forwardMessageToSuperAdmin}><h2 id="forward-message-title">Forward message</h2><p>{forwardMessage.attachments?.length ? 'Forward the message text. Attachments are not copied.' : 'Send this message to an active super-admin chat.'}</p>{!superAdmins.some((admin) => admin.adminStatus === 'active' && admin.replyAllowed) && <p>No active super-admin is available to receive a forwarded message.</p>}<label htmlFor="forward-message-recipient">Super admin</label><select id="forward-message-recipient" value={forwardRecipientId} onChange={(event) => setForwardRecipientId(event.target.value)} required><option value="" disabled>Choose an active super-admin</option>{superAdmins.filter((admin) => admin.adminStatus === 'active' && admin.replyAllowed).map((admin) => <option key={admin.id} value={admin.id}>{admin.displayName}</option>)}</select><div className="admin-message-delete-actions"><button type="button" onClick={() => setForwardMessage(null)} disabled={forwardingMessage}>Cancel</button><button type="submit" disabled={!forwardRecipientId || forwardingMessage}>{forwardingMessage ? 'Forwarding…' : 'Forward'}</button></div></form></div>}
     </div>;
 }
 

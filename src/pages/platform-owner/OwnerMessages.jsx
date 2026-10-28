@@ -3,6 +3,8 @@ import { apiFetch } from '../../services/api.js';
 import { getStoredSessionToken } from '../../services/adminSession.js';
 import { discardMessageAttachments, MessageAttachmentList, MessageAttachmentPicker, uploadMessageAttachment } from '../../components/MessageAttachments.jsx';
 
+const messageReactionOptions = ['👍', '❤️', '😂', '😮', '🙏'];
+
 async function messageRequest(path, options = {}) {
   const token = getStoredSessionToken();
   const response = await apiFetch(`/messages${path}`, {
@@ -32,12 +34,21 @@ export default function OwnerMessages({ onMessagesChanged, ownerId }) {
   const [body, setBody] = useState('');
   const [pendingFiles, setPendingFiles] = useState([]);
   const [editingMessageId, setEditingMessageId] = useState(null);
+  const [replyTarget, setReplyTarget] = useState(null);
+  const [forwardMessage, setForwardMessage] = useState(null);
+  const [forwardRecipientId, setForwardRecipientId] = useState('');
+  const [forwardingMessage, setForwardingMessage] = useState(false);
   const [managingMessages, setManagingMessages] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState([]);
+  const [bulkAction, setBulkAction] = useState('');
+  const [bulkConfirmation, setBulkConfirmation] = useState('');
+  const [bulkActionBusy, setBulkActionBusy] = useState(false);
+  const [chatMinimized, setChatMinimized] = useState(false);
   const [broadcastReplies, setBroadcastReplies] = useState(true);
   const [broadcastRepliesChanged, setBroadcastRepliesChanged] = useState(false);
   const [messageRepliesAllowed, setMessageRepliesAllowed] = useState(true);
   const [showMutedAdmins, setShowMutedAdmins] = useState(false);
+  const [mutedAdminSearch, setMutedAdminSearch] = useState('');
   const [selectedReplyAdminIds, setSelectedReplyAdminIds] = useState([]);
   const [muteRole, setMuteRole] = useState('');
   const [replyAccessBusy, setReplyAccessBusy] = useState(false);
@@ -82,6 +93,7 @@ export default function OwnerMessages({ onMessagesChanged, ownerId }) {
   const historyRef = useRef(null);
   const composeRef = useRef(null);
   const messagesRootRef = useRef(null);
+  const longPressTimer = useRef(null);
 
   function closeMessagePopovers(except = null) {
     messagesRootRef.current?.querySelectorAll('.owner-message-more-actions[open]').forEach((menu) => {
@@ -108,6 +120,39 @@ export default function OwnerMessages({ onMessagesChanged, ownerId }) {
     positionMessageMenu(event.currentTarget);
   }
 
+  function cancelMessageLongPress() {
+    if (longPressTimer.current) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    messagesRootRef.current?.querySelectorAll('.owner-message-bubble.is-long-press').forEach((bubble) => bubble.classList.remove('is-long-press'));
+  }
+
+  function startMessageLongPress(event) {
+    if (event.touches.length !== 1) return;
+    cancelMessageLongPress();
+    const touch = event.touches[0];
+    longPressTimer.current = window.setTimeout(() => {
+      longPressTimer.current = null;
+      const bubble = event.target.closest?.('.owner-message-bubble');
+      const menu = bubble?.querySelector('details.owner-message-more-actions');
+      if (menu) {
+        bubble.classList.remove('is-long-press');
+        menu.open = true;
+        positionMessageMenu(menu);
+        if (navigator.vibrate) navigator.vibrate(30);
+      }
+    }, 550);
+    event.target.addEventListener('touchmove', (moveEvent) => {
+      const current = moveEvent.touches[0];
+      if (current && (Math.abs(current.clientX - touch.clientX) > 10 || Math.abs(current.clientY - touch.clientY) > 10)) cancelMessageLongPress();
+    }, { once: true, passive: true });
+    const bubble = event.target.closest?.('.owner-message-bubble');
+    if (bubble) bubble.classList.add('is-long-press');
+  }
+
+  useEffect(() => cancelMessageLongPress, []);
+
   useEffect(() => {
     const repositionOpenMenus = () => messagesRootRef.current?.querySelectorAll('.owner-message-more-actions[open]').forEach(positionMessageMenu);
     window.addEventListener('resize', repositionOpenMenus);
@@ -121,6 +166,9 @@ export default function OwnerMessages({ onMessagesChanged, ownerId }) {
   const activeAdmin = threads.find((thread) => String(thread.adminId) === String(activeAdminId));
   const activeAdminIsSelf = Boolean(activeAdmin && String(activeAdmin.adminId) === String(ownerId));
   const mutedAdmins = threads.filter((thread) => thread.replyAllowed === false);
+  const visibleMutedAdmins = threads.filter((thread) =>
+    `${thread.adminName || ''} ${thread.adminEmail || ''}`.toLowerCase().includes(mutedAdminSearch.trim().toLowerCase())
+  );
   const activeMessages = activeAdmin?.id ? messages.filter((message) =>
     (message.threadId === activeAdmin.id && (String(message.senderId) !== String(ownerId) || !message.recipientOwnerId || String(message.recipientOwnerId) === String(activeAdmin.adminId)))
       || (String(message.senderId) === String(ownerId) && String(message.recipientOwnerId) === String(activeAdmin.adminId))
@@ -131,9 +179,6 @@ export default function OwnerMessages({ onMessagesChanged, ownerId }) {
       && (roleFilter === 'all' || (thread.adminRoles || []).includes(roleFilter))
   );
   const visibleThreads = searchedThreads;
-  // The backend returns oldest-first; flip so the newest message sits on top
-  // and older messages scroll away below.
-  const activeMessagesNewestFirst = [...activeMessages].reverse();
   const allRoleValues = [...new Set(threads.flatMap((thread) => thread.adminRoles || []))];
   const roleCounts = {};
   threads.forEach((thread) => (thread.adminRoles || []).forEach((role) => { roleCounts[role] = (roleCounts[role] || 0) + 1; }));
@@ -149,22 +194,29 @@ export default function OwnerMessages({ onMessagesChanged, ownerId }) {
     (sentGroups[key] ||= []).push({ name: thread.adminName || thread.adminEmail, roles: thread.adminRoles || [] });
   });
 
-  // Keep the newest message (top of the list) in view.
+  // Keep the newest message visible at the bottom of the chronological history.
   useEffect(() => {
     const history = historyRef.current;
-    if (history) history.scrollTop = 0;
+    if (history) history.scrollTop = history.scrollHeight;
   }, [activeAdminId, activeMessages.length]);
 
   useEffect(() => {
     if (!activeAdmin?.id || !latestUnreadForActiveAdmin) return;
     messageRequest(`/threads/${activeAdmin.id}/read`, { method: 'POST' })
-      .then(() => Promise.all([loadMessages(), onMessagesChanged?.()]))
-      .catch(() => {});
-  }, [activeAdmin?.id, latestUnreadForActiveAdmin?.id, loadMessages, onMessagesChanged]);
+      .then(async () => {
+        setMessages((current) => current.map((message) => message.threadId === activeAdmin.id
+          && String(message.senderId) !== String(ownerId)
+          && (!message.recipientOwnerId || String(message.recipientOwnerId) === String(ownerId))
+          ? { ...message, isRead: true }
+          : message));
+        await Promise.all([loadMessages(), onMessagesChanged?.()]);
+      })
+      .catch((requestError) => setError(requestError.message || 'Could not mark this conversation as read.'));
+  }, [activeAdmin?.id, latestUnreadForActiveAdmin?.id, loadMessages, onMessagesChanged, ownerId]);
 
   useEffect(() => {
-    if (editingMessageId !== null) composeRef.current?.focus();
-  }, [editingMessageId]);
+    if (editingMessageId !== null || replyTarget) composeRef.current?.focus();
+  }, [editingMessageId, replyTarget]);
 
   const roleLabels = {
     platform_owner: 'Super admin',
@@ -179,6 +231,25 @@ export default function OwnerMessages({ onMessagesChanged, ownerId }) {
     : recipientMode === 'role'
       ? threads.filter((thread) => thread.adminStatus === 'active' && String(thread.adminId) !== String(ownerId) && (thread.adminRoles || []).includes(recipientRole)).length
       : (activeAdmin?.adminStatus === 'active' && !activeAdminIsSelf ? 1 : 0);
+
+  async function setAdminReplyAccess(thread, allowed) {
+    if (replyAccessBusy) return;
+    setError('');
+    setNotice('');
+    setReplyAccessBusy(true);
+    try {
+      await messageRequest('/threads/replies/bulk', {
+        method: 'PATCH',
+        body: JSON.stringify({ adminIds: [thread.adminId], allowed })
+      });
+      await loadMessages();
+      setNotice(`${thread.adminName}: replies ${allowed ? 'allowed' : 'muted'}.`);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setReplyAccessBusy(false);
+    }
+  }
 
   async function setReplyAccess(allowed) {
     if (!activeAdmin) return;
@@ -228,12 +299,14 @@ export default function OwnerMessages({ onMessagesChanged, ownerId }) {
         await messageRequest(`/${editingMessageId}`, { method: 'PATCH', body: JSON.stringify({ body: body.trim() }) });
         setBody('');
         setEditingMessageId(null);
+        setReplyTarget(null);
         setNotice('Message updated.');
         await loadMessages();
         return;
       }
       const payload = {
         body: body.trim(),
+        ...(recipientMode === 'selected' && replyTarget ? { replyToMessageId: replyTarget.id } : {}),
         ...(recipientMode === 'selected' ? { allowReplies: activeAdmin?.replyAllowed ?? true } : broadcastRepliesChanged ? { allowReplies: broadcastReplies } : {}),
         allowMessageReplies: messageRepliesAllowed,
         ...(recipientMode === 'role' ? { recipientRole } : {}),
@@ -247,6 +320,7 @@ export default function OwnerMessages({ onMessagesChanged, ownerId }) {
       const result = await messageRequest('', { method: 'POST', body: JSON.stringify({ ...payload, attachmentIds: uploadedIds }) });
       setBody('');
       setPendingFiles([]);
+      setReplyTarget(null);
       setBroadcastRepliesChanged(false);
       setNotice(result.message || 'Message sent.');
       await loadMessages();
@@ -260,59 +334,155 @@ export default function OwnerMessages({ onMessagesChanged, ownerId }) {
     finally { setSending(false); }
   }
 
-  async function deleteMessage(messageId) {
-    if (!window.confirm('Clear this message from the recipient conversations? You can clear it permanently later.')) return;
+  function beginReply(message) {
+    if (!activeAdmin || activeAdminIsSelf || activeAdmin.adminStatus !== 'active') return;
+    setRecipientMode('selected');
+    setReplyTarget(message);
+    setEditingMessageId(null);
+    setBody('');
+    composeRef.current?.focus();
+  }
+
+  function beginForward(message) {
+    const recipient = threads.find((thread) => thread.adminStatus === 'active' && String(thread.adminId) !== String(ownerId));
+    setForwardRecipientId(String(recipient?.adminId || ''));
+    setForwardMessage(message);
+  }
+
+  async function forwardMessageToAdmin(event) {
+    event.preventDefault();
+    const recipient = threads.find((thread) => String(thread.adminId) === String(forwardRecipientId) && thread.adminStatus === 'active' && String(thread.adminId) !== String(ownerId));
+    if (!forwardMessage || !recipient || forwardingMessage) return;
+    setForwardingMessage(true);
+    setError('');
+    try {
+      const attachmentNote = forwardMessage.attachments?.length ? `\n\n[${forwardMessage.attachments.length} attachment${forwardMessage.attachments.length === 1 ? '' : 's'} not included in this forwarded copy.]` : '';
+      const forwardedBody = `Forwarded from ${forwardMessage.senderName || forwardMessage.senderEmail || 'a conversation'}:\n\n${(forwardMessage.body || '[Attachment]').slice(0, 2750)}${attachmentNote}`;
+      await messageRequest('', { method: 'POST', body: JSON.stringify({ body: forwardedBody, adminId: recipient.adminId, allowMessageReplies: true }) });
+      setForwardMessage(null);
+      setActiveAdminId(String(recipient.adminId));
+      setRecipientMode('selected');
+      setReplyTarget(null);
+      setEditingMessageId(null);
+      setBody('');
+      setPendingFiles([]);
+      setRoleFilter('all');
+      setMobileChatOpen(true);
+      setNotice(`Message forwarded to ${recipient.adminName}.`);
+      await loadMessages();
+      await onMessagesChanged?.();
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setForwardingMessage(false);
+    }
+  }
+
+  async function deleteMessage(messageId, ownMessage) {
+    const prompt = ownMessage
+      ? 'Type delete to permanently delete this sent message for everyone.'
+      : 'Type delete to permanently delete this received message for everyone.';
+    if (window.prompt(prompt) !== 'delete') return;
     setError(''); setNotice('');
     try {
-      await messageRequest(`/${messageId}`, { method: 'DELETE' });
+      const result = await messageRequest(`/${messageId}`, { method: 'DELETE', body: JSON.stringify({ confirmation: 'delete' }) });
       await loadMessages();
-      setNotice('Message cleared.');
+      setNotice(result.message || 'Message deleted permanently for everyone.');
     } catch (requestError) { setError(requestError.message); }
   }
 
-  async function deleteSelectedMessages() {
-    if (!activeSelectedMessageIds.length || !window.confirm(`Clear the selected ${activeSelectedMessageIds.length} sent message${activeSelectedMessageIds.length === 1 ? '' : 's'}?`)) return;
-    setError(''); setNotice('');
+  async function toggleMessageReaction(messageId, emoji) {
+    setError('');
     try {
-      const result = await messageRequest('/bulk-clear', { method: 'DELETE', body: JSON.stringify({ ids: activeSelectedMessageIds }) });
-      await loadMessages();
-      setSelectedMessageIds([]); setManagingMessages(false);
-      setNotice(result.message || 'Selected messages cleared.');
-    } catch (requestError) { setError(requestError.message); }
+      const result = await messageRequest(`/${messageId}/reactions`, {
+        method: 'POST',
+        body: JSON.stringify({ emoji })
+      });
+      setMessages((current) => current.map((message) => message.id === messageId
+        ? { ...message, reactions: result.reactions || [] }
+        : message));
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  }
+
+  async function copyMessage(message) {
+    if (!message.body) {
+      setError('There is no message text to copy.');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(message.body || '');
+      setNotice('Message copied.');
+    } catch (requestError) {
+      setError(`Could not copy this message: ${requestError.message}`);
+    }
+  }
+
+  async function toggleMessageFlag(messageId, flag, enabled) {
+    try {
+      const result = await messageRequest(`/${messageId}/flags`, {
+        method: 'POST',
+        body: JSON.stringify({ flag, enabled })
+      });
+      setMessages((current) => current.map((message) => message.id === messageId
+        ? { ...message, isPinned: result.isPinned, isStarred: result.isStarred }
+        : message));
+    } catch (requestError) {
+      setError(requestError.message);
+    }
   }
 
   async function clearMessagePermanently(messageId) {
-    if (!window.confirm('Clear this message, its recipient copies, and attachments permanently? This cannot be undone.')) return;
+    if (window.prompt('Type delete to permanently delete this message and its attachments for everyone.') !== 'delete') return;
     setError(''); setNotice('');
     try {
-      await messageRequest(`/${messageId}/clear-permanent`, { method: 'DELETE' });
+      await messageRequest(`/${messageId}/clear-permanent`, { method: 'DELETE', body: JSON.stringify({ confirmation: 'delete' }) });
       await loadMessages();
       await onMessagesChanged?.();
       setNotice('Message cleared permanently.');
     } catch (requestError) { setError(requestError.message); }
   }
 
-  async function clearSelectedPermanently() {
-    if (!selectedMessageIds.length || !window.confirm(`Clear ${selectedMessageIds.length} selected message${selectedMessageIds.length === 1 ? '' : 's'}, their recipient copies, and attachments permanently? This cannot be undone.`)) return;
-    setError(''); setNotice('');
+  async function confirmBulkAction(event) {
+    event.preventDefault();
+    if (!bulkAction || bulkConfirmation !== 'delete' || bulkActionBusy) return;
+    setError(''); setNotice(''); setBulkActionBusy(true);
     try {
-      const result = await messageRequest('/bulk-clear-permanent', { method: 'DELETE', body: JSON.stringify({ ids: selectedMessageIds }) });
+      const result = bulkAction === 'all'
+        ? await messageRequest('/clear-all', { method: 'DELETE', body: JSON.stringify({ confirmation: 'delete' }) })
+        : await messageRequest('/bulk-clear-permanent', { method: 'DELETE', body: JSON.stringify({
+          ids: bulkAction === 'received' ? selectedReceivedMessageIds : selectedSentMessageIds,
+          confirmation: 'delete'
+        }) });
       await loadMessages();
       await onMessagesChanged?.();
-      setSelectedMessageIds([]); setManagingMessages(false);
-      setNotice(result.message || 'Selected messages cleared permanently.');
+      setSelectedMessageIds([]);
+      setManagingMessages(false);
+      setBulkAction('');
+      setBulkConfirmation('');
+      setNotice(result.message || 'The selected chat messages were updated.');
     } catch (requestError) { setError(requestError.message); }
+    finally { setBulkActionBusy(false); }
   }
 
-  const selectableMessages = activeMessages.filter((message) => String(message.senderId) === String(ownerId));
-  const activeSelectedMessageIds = selectedMessageIds.filter((id) => selectableMessages.some((message) => message.id === id && !message.deletedAt));
+  const selectableMessages = activeMessages.filter((message) => !message.deletedAt && !message.isHidden);
+  const activeSelectedMessageIds = selectedMessageIds.filter((id) => selectableMessages.some((message) =>
+    message.id === id
+  ));
+  const selectedSentMessageIds = activeSelectedMessageIds.filter((id) => selectableMessages.some((message) =>
+    message.id === id && String(message.senderId) === String(ownerId)
+  ));
+  const selectedReceivedMessageIds = selectedMessageIds.filter((id) => selectableMessages.some((message) =>
+    String(message.id) === String(id) && String(message.senderId) !== String(ownerId)
+  ));
   const allSelectableSelected = selectableMessages.length > 0 && selectableMessages.every((message) => selectedMessageIds.includes(message.id));
 
   return <section ref={messagesRootRef} className="owner-card owner-messages" aria-labelledby="owner-messages-title">
     <header className="owner-messages-heading"><div><p className="owner-eyebrow">ADMIN COMMUNICATIONS</p><h2 id="owner-messages-title">Chat</h2><p>Choose a role to message active admins in it, or select an admin, including another super-admin, for a private conversation and set reply access.</p></div></header>
     {error && <p className="owner-message-feedback is-error" role="alert">{error}</p>}
     {notice && <p className="owner-message-feedback" role="status">{notice}</p>}
-    <div className={`owner-message-layout${mobileChatOpen ? ' is-mobile-chat-open' : ''}`}>
+    <div className={`owner-message-layout${mobileChatOpen ? ' is-mobile-chat-open' : ''}${chatMinimized ? ' is-chat-minimized' : ''}`}>
       <aside className={`owner-message-admins${adminSearch || roleFilter !== 'all' ? ' is-filtered' : ''}`} aria-label="Admin conversations">
         <div className="owner-message-admin-tools">
           <label className="owner-message-search"><i className="fas fa-magnifying-glass" /><input type="search" placeholder="Find an admin by name or email" value={adminSearchInput} onChange={(event) => setAdminSearchInput(event.target.value)} aria-label="Search admin conversations" /></label>
@@ -323,14 +493,22 @@ export default function OwnerMessages({ onMessagesChanged, ownerId }) {
         <div className="owner-message-admin-list">{loading ? <p className="owner-message-empty-state">Loading admins…</p> : visibleThreads.length ? visibleThreads.map((thread) => {
           const unreadForThread = messages.filter((message) => message.threadId === thread.id && !message.deletedAt && String(message.senderId) !== String(ownerId) && !message.isRead).length;
           const isSuperAdmin = (thread.adminRoles || []).includes('platform_owner');
-          return <button type="button" key={thread.adminId} className={`owner-message-admin${String(thread.adminId) === String(activeAdminId) ? ' is-active' : ''}${unreadForThread ? ' has-unread' : ''}`} aria-label={`${thread.adminName}, ${thread.adminStatus}`} onClick={() => { closeMessagePopovers(); setActiveAdminId(String(thread.adminId)); setRecipientMode('selected'); setManagingMessages(false); setSelectedMessageIds([]); setMobileChatOpen(true); setNotice(''); }}>
-          <span className="owner-message-avatar">{thread.adminName?.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()}</span><span className="owner-message-admin-copy"><strong>{thread.adminName}{isSuperAdmin ? ' (Super)' : ''}</strong><small>{(thread.adminRoles || []).map((value) => roleLabels[value] || value).join(', ') || thread.adminEmail}</small></span>{unreadForThread > 0 && <span className="owner-message-unread" aria-label={`${unreadForThread} unread messages`}>{unreadForThread}</span>}<i className={`owner-message-status ${thread.adminStatus}`} title={thread.adminStatus} />
-        </button>;
+          return <div className="owner-message-admin-row" key={thread.adminId}>
+            <button type="button" className={`owner-message-admin${String(thread.adminId) === String(activeAdminId) ? ' is-active' : ''}${unreadForThread ? ' has-unread' : ''}`} aria-label={`Chat with ${thread.adminName}, account ${thread.adminStatus}${unreadForThread ? `, ${unreadForThread} unread messages` : ''}`} onClick={() => { closeMessagePopovers(); setActiveAdminId(String(thread.adminId)); setRecipientMode('selected'); setManagingMessages(false); setSelectedMessageIds([]); setChatMinimized(false); setMobileChatOpen(true); setNotice(''); }}>
+              <span className="owner-message-avatar">{thread.adminName?.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()}</span>
+              <span className="owner-message-admin-copy">
+                <strong>{isSuperAdmin && <i className="fas fa-shield-halved owner-super-admin-mark" aria-label="Super admin" />}{thread.adminName}{unreadForThread > 0 && <span className="owner-message-unread" aria-label={`${unreadForThread} unread messages`}>{unreadForThread}</span>}</strong>
+                <small>{isSuperAdmin ? 'Super admin' : (thread.adminRoles || []).map((value) => roleLabels[value] || value).join(', ') || thread.adminEmail}</small>
+                <small className={`owner-message-account-status ${thread.adminStatus}`}>{thread.adminStatus === 'active' ? 'Active' : thread.adminStatus === 'inactive' ? 'Inactive' : 'Pending'}</small>
+              </span>
+            </button>
+          </div>;
         }) : <p className="owner-message-empty-state">{threads.length ? 'No admins match your search or role filter.' : 'No admin accounts are available.'}</p>}</div>
       </aside>
       <div className="owner-message-workspace">
-        <header className="owner-message-conversation-heading"><button type="button" className="owner-message-mobile-back" onClick={() => setMobileChatOpen(false)}><i className="fas fa-arrow-left" /> Chats</button><div><strong>{recipientMode === 'all' ? `Broadcast · ${activeRecipients} active admin${activeRecipients === 1 ? '' : 's'}` : recipientMode === 'role' ? `${roleLabels[recipientRole] || recipientRole} · ${activeRecipients} active admin${activeRecipients === 1 ? '' : 's'}` : activeAdmin ? `${activeAdmin.adminName}${(activeAdmin.adminRoles || []).includes('platform_owner') ? ' (Super)' : ''}` : 'Choose an admin'}</strong><small>{recipientMode === 'all' ? 'One copy lands in every active admin conversation' : recipientMode === 'role' ? `Message all active ${roleLabels[recipientRole] || recipientRole} admins` : activeAdmin?.adminEmail || 'Search and select an account to open its conversation'}</small></div>
+        <header className="owner-message-conversation-heading"><button type="button" className="owner-message-mobile-back" onClick={() => setMobileChatOpen(false)}><i className="fas fa-arrow-left" /> Chats</button><div><strong>{recipientMode === 'all' ? `Broadcast · ${activeRecipients} active admin${activeRecipients === 1 ? '' : 's'}` : recipientMode === 'role' ? `${roleLabels[recipientRole] || recipientRole} · ${activeRecipients} active admin${activeRecipients === 1 ? '' : 's'}` : activeAdmin ? `${activeAdmin.adminName}${(activeAdmin.adminRoles || []).includes('platform_owner') ? ' (Super admin)' : ''}` : 'Choose an admin'}</strong><small>{recipientMode === 'all' ? 'One copy lands in every active admin conversation' : recipientMode === 'role' ? `Message all active ${roleLabels[recipientRole] || recipientRole} admins` : `${activeAdmin?.adminEmail || 'Search and select an account to open its conversation'}${activeAdmin ? ` · ${activeMessages.length} ${activeMessages.length === 1 ? 'message' : 'messages'}` : ''}`}</small></div>
           <div className="owner-message-header-actions">
+          <button type="button" className="owner-message-minimize-toggle" aria-label={chatMinimized ? 'Restore chat' : 'Minimize chat'} title={chatMinimized ? 'Restore chat' : 'Minimize chat'} onClick={() => setChatMinimized((current) => !current)}><i className={`fas ${chatMinimized ? 'fa-window-maximize' : 'fa-window-minimize'}`} /></button>
           {recipientMode === 'selected' && activeAdmin && <label className="owner-reply-toggle" title="Conversation-wide setting that applies to every reply"><input type="checkbox" checked={Boolean(activeAdmin.replyAllowed)} disabled={updatingReplyAccess || activeAdmin.adminStatus !== 'active'} onChange={(event) => setReplyAccess(event.target.checked)} /><span>{activeAdmin.replyAllowed ? 'All replies allowed' : 'All replies stopped'}</span></label>}
           <div className="owner-message-mute-menu">
             <button type="button" className="owner-muted-admins-toggle" aria-expanded={showMutedAdmins} aria-label={`Muted admins: ${mutedAdmins.length}`} title="Manage muted admins and role groups" onClick={() => { const next = !showMutedAdmins; closeMessagePopovers(); setShowMutedAdmins(next); }}><i className="fas fa-volume-xmark" /><span>{mutedAdmins.length}</span></button>
@@ -338,16 +516,17 @@ export default function OwnerMessages({ onMessagesChanged, ownerId }) {
               <div className="owner-muted-admins-heading"><strong>Manage reply access</strong><button type="button" aria-label="Cancel and close reply access" title="Cancel" onClick={() => { setShowMutedAdmins(false); setSelectedReplyAdminIds([]); }}><i className="fas fa-xmark" /></button></div>
               <label className="owner-muted-role-select">Mute or allow by role<select value={muteRole} onChange={(event) => setMuteRole(event.target.value)}><option value="">Choose a role</option>{allRoleValues.map((role) => <option key={role} value={role}>{roleLabels[role] || role}</option>)}</select></label>
               <div className="owner-muted-admin-actions"><button type="button" disabled={!muteRole || replyAccessBusy} onClick={() => setBulkReplyAccess({ role: muteRole, allowed: false })}>Mute role</button><button type="button" disabled={!muteRole || replyAccessBusy} onClick={() => setBulkReplyAccess({ role: muteRole, allowed: true })}>Allow role</button></div>
-              {threads.length ? <><div className="owner-muted-admin-list">{threads.map((thread) => <label key={thread.adminId}><input type="checkbox" checked={selectedReplyAdminIds.includes(thread.adminId)} onChange={(event) => setSelectedReplyAdminIds((current) => event.target.checked ? [...current, thread.adminId] : current.filter((id) => id !== thread.adminId))} /><span><strong>{thread.adminName}</strong><small>{(thread.adminRoles || []).map((role) => roleLabels[role] || role).join(', ') || thread.adminEmail}</small></span><em className={thread.replyAllowed ? '' : 'is-muted'}>{thread.replyAllowed ? 'Allowed' : 'Muted'}</em></label>)}</div><div className="owner-muted-admin-actions"><button type="button" disabled={!selectedReplyAdminIds.length || replyAccessBusy} onClick={() => setBulkReplyAccess({ adminIds: selectedReplyAdminIds, allowed: false })}>Mute selected</button><button type="button" disabled={!selectedReplyAdminIds.length || replyAccessBusy} onClick={() => setBulkReplyAccess({ adminIds: selectedReplyAdminIds, allowed: true })}>Allow selected</button></div></> : <p className="owner-message-empty-state">No admins are available.</p>}
+              <label className="owner-muted-search"><i className="fas fa-magnifying-glass" /><input type="search" value={mutedAdminSearch} onChange={(event) => setMutedAdminSearch(event.target.value)} placeholder="Find an admin" aria-label="Search admins to mute or allow" /></label>
+              {visibleMutedAdmins.length ? <><div className="owner-muted-admin-list">{visibleMutedAdmins.map((thread) => <div className="owner-muted-admin-row" key={thread.adminId}><label><input type="checkbox" checked={selectedReplyAdminIds.includes(thread.adminId)} onChange={(event) => setSelectedReplyAdminIds((current) => event.target.checked ? [...current, thread.adminId] : current.filter((id) => id !== thread.adminId))} /><span><strong>{thread.adminName}</strong><small>{(thread.adminRoles || []).map((role) => roleLabels[role] || role).join(', ') || thread.adminEmail}</small></span><em className={thread.replyAllowed ? '' : 'is-muted'}>{thread.replyAllowed ? 'Allowed' : 'Muted'}</em></label><button type="button" disabled={replyAccessBusy} onClick={() => setAdminReplyAccess(thread, !thread.replyAllowed)}>{thread.replyAllowed ? 'Mute' : 'Allow'}</button></div>)}</div><div className="owner-muted-admin-actions"><button type="button" disabled={!selectedReplyAdminIds.length || replyAccessBusy} onClick={() => setBulkReplyAccess({ adminIds: selectedReplyAdminIds, allowed: false })}>Mute selected</button><button type="button" disabled={!selectedReplyAdminIds.length || replyAccessBusy} onClick={() => setBulkReplyAccess({ adminIds: selectedReplyAdminIds, allowed: true })}>Allow selected</button></div></> : <p className="owner-message-empty-state">{threads.length ? 'No admins match your search.' : 'No admins are available.'}</p>}
             </div>}
           </div>
-          <button type="button" className="owner-message-manage-toggle" disabled={!selectableMessages.length} onClick={() => { closeMessagePopovers(); setManagingMessages((current) => !current); setSelectedMessageIds([]); }}>{managingMessages ? 'Cancel' : 'Manage'}</button>
+          <button type="button" className="owner-message-manage-toggle" onClick={() => { closeMessagePopovers(); setManagingMessages((current) => !current); setSelectedMessageIds([]); }}>{managingMessages ? 'Cancel' : 'Manage'}</button>
           </div>
         </header>
-        {managingMessages && <div className="owner-message-bulk-actions"><button type="button" className={!allSelectableSelected ? 'is-active' : ''} disabled={!selectableMessages.length} onClick={() => setSelectedMessageIds([])}>Select manually</button><button type="button" className={allSelectableSelected ? 'is-active' : ''} disabled={!selectableMessages.length} onClick={() => setSelectedMessageIds(selectableMessages.map((message) => message.id))}>Select all in conversation</button><span>{selectedMessageIds.length} selected</span><details className="owner-message-more-actions" onToggle={handleMessageMenuToggle}><summary><i className="fas fa-ellipsis" /> Actions</summary><div role="menu" aria-label="Selected message actions"><button type="button" role="menuitem" disabled={!activeSelectedMessageIds.length} onClick={(event) => { event.currentTarget.closest('details').open = false; deleteSelectedMessages(); }}>Clear for recipients</button><button type="button" role="menuitem" className="owner-message-clear-permanent" disabled={!selectedMessageIds.length} onClick={(event) => { event.currentTarget.closest('details').open = false; clearSelectedPermanently(); }}>Delete permanently</button></div></details></div>}
-        <div className="owner-message-history" ref={historyRef} aria-live="polite">
+        {managingMessages && <div className="owner-message-bulk-actions"><button type="button" className={!allSelectableSelected ? 'is-active' : ''} disabled={!selectableMessages.length} onClick={() => setSelectedMessageIds([])}>Select manually</button><button type="button" className={allSelectableSelected ? 'is-active' : ''} disabled={!selectableMessages.length} onClick={() => setSelectedMessageIds(selectableMessages.map((message) => message.id))}>Select all in conversation</button><span>{selectedMessageIds.length} selected</span><button type="button" className="owner-message-clear-permanent" disabled={!selectedSentMessageIds.length} onClick={() => { setBulkAction('sent'); setBulkConfirmation(''); }}><i className="fas fa-trash" /> Delete sent for everyone</button><button type="button" className="owner-message-clear-inbox" disabled={!selectedReceivedMessageIds.length} onClick={() => { setBulkAction('received'); setBulkConfirmation(''); }}><i className="fas fa-trash" /> Delete received for everyone</button><button type="button" className="owner-message-clear-permanent" onClick={() => { setBulkAction('all'); setBulkConfirmation(''); }}><i className="fas fa-trash-can" /> Delete all chat history</button></div>}
+        {!chatMinimized && <><div className="owner-message-history" ref={historyRef} aria-live="polite">
           {loading ? <p className="owner-message-empty-state">Loading messages…</p> : activeMessages.length ? <>
-            {activeMessagesNewestFirst.map((message) => {
+            {activeMessages.map((message) => {
             const ownMessage = String(message.senderId) === String(ownerId);
             const recipients = ownMessage && message.messageGroupId ? (sentGroups[message.messageGroupId] || []) : null;
             const sentLabel = !recipients ? 'Sent' : message.messageGroupLabel === 'all'
@@ -355,19 +534,31 @@ export default function OwnerMessages({ onMessagesChanged, ownerId }) {
               : message.messageGroupLabel
                 ? `Sent to ${message.messageGroupLabel} (${recipients.length})`
                 : recipients.length === 1 ? `Sent to ${recipients[0].name}` : `Sent to ${recipients.length} admins`;
-            return <article key={message.id} className={`owner-message-bubble ${ownMessage ? 'owner-sent' : 'admin-sent'}`}>
+            return <article key={message.id} className={`owner-message-bubble ${ownMessage ? 'owner-sent' : 'admin-sent'}`} onTouchStart={startMessageLongPress} onTouchEnd={cancelMessageLongPress} onTouchCancel={cancelMessageLongPress} onContextMenu={(event) => { if (window.matchMedia('(hover: none)').matches) event.preventDefault(); }}>
               <small>{message.senderName || message.senderEmail} · {new Date(message.createdAt).toLocaleString()}</small>
-              {managingMessages && ownMessage && <label className="owner-message-select"><input type="checkbox" checked={selectedMessageIds.includes(message.id)} aria-label="Select sent message" onChange={(event) => setSelectedMessageIds((current) => event.target.checked ? [...current, message.id] : current.filter((id) => id !== message.id))} /></label>}
-              {message.deletedAt ? <><p className="owner-message-deleted"><i className="fas fa-ban" /> This message was cleared</p>{ownMessage && <details className="owner-message-more-actions" onToggle={handleMessageMenuToggle}><summary aria-label="More actions for cleared message" title="More actions"><i className="fas fa-ellipsis" /></summary><div role="menu"><button type="button" role="menuitem" className="owner-message-clear-permanent" onClick={(event) => { event.currentTarget.closest('details').open = false; clearMessagePermanently(message.id); }}>Delete permanently</button></div></details>}</> : <><p>{message.body}</p><MessageAttachmentList attachments={message.attachments} />{message.editedAt && <small className="owner-message-edited-label">Edited</small>}{ownMessage && !managingMessages && <div className="owner-message-controls"><details className="owner-message-more-actions" onToggle={handleMessageMenuToggle}><summary aria-label="Message actions" title="Message actions"><i className="fas fa-ellipsis" /></summary><div role="menu"><button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; setRecipientMode('selected'); setBody(message.body); setEditingMessageId(message.id); }}><i className="fas fa-pen" /> Edit message</button><button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; deleteMessage(message.id); }}><i className="fas fa-trash" /> Clear for recipients</button></div></details></div>}</>}
+              {!ownMessage && !message.isRead && <small className="owner-message-unread-label">Unread</small>}
+              {message.replyToMessageId && <small className="owner-message-reply-context"><i className="fas fa-reply" /> Reply to a message</small>}
+              {(message.isPinned || message.isStarred) && <small className="owner-message-flags">{message.isPinned && <span><i className="fas fa-thumbtack" /> Pinned</span>}{message.isStarred && <span><i className="fas fa-star" /> Starred</span>}</small>}
+              {managingMessages && <label className={`owner-message-select${ownMessage ? '' : ' is-received'}`}><input type="checkbox" checked={selectedMessageIds.includes(message.id)} aria-label={`Select message from ${message.senderName || 'conversation'}`} onChange={(event) => setSelectedMessageIds((current) => event.target.checked ? [...current, message.id] : current.filter((id) => id !== message.id))} /><span>{ownMessage ? 'Select to delete for everyone' : 'Select message'}</span></label>}
+              {message.deletedAt ? <><p className="owner-message-deleted"><i className="fas fa-ban" /> This message was cleared</p>{ownMessage && <details className="owner-message-more-actions" onToggle={handleMessageMenuToggle}><summary aria-label="More actions for cleared message" title="More actions"><i className="fas fa-ellipsis" /></summary><div role="menu"><button type="button" role="menuitem" className="owner-message-clear-permanent" onClick={(event) => { event.currentTarget.closest('details').open = false; clearMessagePermanently(message.id); }}>Delete permanently</button></div></details>}</> : <><p>{message.body}</p><MessageAttachmentList attachments={message.attachments} />{message.editedAt && <small className="owner-message-edited-label">Edited</small>}{message.reactions?.length > 0 && <div className="owner-message-reactions">{message.reactions.map((reaction) => <button key={reaction.emoji} type="button" className={reaction.reacted ? 'is-reacted' : ''} aria-label={`${reaction.emoji}, ${reaction.count} reactions`} onClick={() => toggleMessageReaction(message.id, reaction.emoji)}>{reaction.emoji} {reaction.count}</button>)}</div>}{!managingMessages && <div className="owner-message-controls"><details className="owner-message-more-actions" onToggle={handleMessageMenuToggle}><summary aria-label="Message actions" title="Message actions"><i className="fas fa-ellipsis" /></summary><div role="menu">
+                <div className="owner-message-reaction-options" role="group" aria-label="Add reaction">{messageReactionOptions.map((emoji) => <button key={emoji} type="button" role="menuitem" aria-label={`React with ${emoji}`} onClick={(event) => { event.currentTarget.closest('details').open = false; toggleMessageReaction(message.id, emoji); }}>{emoji}</button>)}</div>
+                <button type="button" role="menuitem" disabled={!activeAdmin || activeAdminIsSelf || activeAdmin.adminStatus !== 'active' || message.replyAllowed === false || message.replyAllowed === 0} onClick={(event) => { event.currentTarget.closest('details').open = false; beginReply(message); }}><i className="fas fa-reply" /> Reply</button>
+                <button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; copyMessage(message); }}><i className="fas fa-copy" /> Copy</button>
+                <button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; beginForward(message); }}><i className="fas fa-share" /> Forward</button>
+                <button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; toggleMessageFlag(message.id, 'pin', !message.isPinned); }}><i className="fas fa-thumbtack" /> {message.isPinned ? 'Unpin' : 'Pin'}</button>
+                <button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; toggleMessageFlag(message.id, 'star', !message.isStarred); }}><i className="fas fa-star" /> {message.isStarred ? 'Unstar' : 'Star'}</button>
+                <button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; setManagingMessages(true); setSelectedMessageIds((current) => current.includes(message.id) ? current : [...current, message.id]); }}><i className="far fa-square-check" /> Select</button>
+                {ownMessage && <><button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; setRecipientMode('selected'); setReplyTarget(null); setBody(message.body); setEditingMessageId(message.id); }}><i className="fas fa-pen" /> Edit</button><button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; deleteMessage(message.id, true); }}><i className="fas fa-trash" /> Delete for everyone</button></>}
+                {!ownMessage && <button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; deleteMessage(message.id, false); }}><i className="fas fa-inbox" /> Remove from my inbox</button>}
+              </div></details></div>}</>}
               {ownMessage && <><span className="owner-message-delivered" title={recipients?.map((recipient) => recipient.name).join(', ')}><i className={`fas ${message.isDelivered ? 'fa-check-double' : 'fa-check'}`} aria-hidden="true" /> {message.isDelivered ? sentLabel : 'Sent · waiting for recipient'}</span><span className={`owner-message-reply-status${message.replyAllowed === false || message.replyAllowed === 0 ? ' is-disabled' : ''}`} title="Reply permission saved with this message"><i className={`fas ${message.replyAllowed === false || message.replyAllowed === 0 ? 'fa-lock' : 'fa-reply'}`} aria-hidden="true" /> {message.replyAllowed === false || message.replyAllowed === 0 ? 'Replies not allowed' : 'Replies allowed'}</span></>}
             </article>;
             })}
-            {activeMessages.length > 5 && <button type="button" className="owner-message-older-hint" onClick={() => { const history = historyRef.current; if (history) history.scrollTop = history.scrollHeight; }}><i className="fas fa-arrow-down" /> {activeMessages.length - 5} older below</button>}
           </> : <p className="owner-message-empty-state">{activeAdmin ? 'No messages in this conversation yet. Write the first one below.' : 'Choose an admin conversation to see its messages.'}</p>}
         </div>
         <form className="owner-message-compose" onSubmit={sendMessage}>
           <div className="owner-message-compose-row">
-            <label className="owner-message-recipient">Send to<select value={recipientMode === 'role' ? `role:${recipientRole}` : recipientMode} onChange={(event) => { const value = event.target.value; if (value.startsWith('role:')) { const role = value.slice(5); setRecipientRole(role); setRoleFilter(role); setRecipientMode('role'); } else setRecipientMode(value); }}><option value="selected" disabled={!activeAdmin || activeAdmin.adminStatus !== 'active' || activeAdminIsSelf}>{activeAdmin ? `${activeAdmin.adminName} (private)` : 'Choose an active admin'}</option><option value="all">All active admins ({threads.filter((thread) => thread.adminStatus === 'active' && String(thread.adminId) !== String(ownerId)).length})</option>{allRoleValues.map((role) => <option key={role} value={`role:${role}`}>All {roleLabels[role] || role} admins ({threads.filter((thread) => thread.adminStatus === 'active' && String(thread.adminId) !== String(ownerId) && (thread.adminRoles || []).includes(role)).length})</option>)}</select></label>
+            <label className="owner-message-recipient">Send to<select value={recipientMode === 'role' ? `role:${recipientRole}` : recipientMode} onChange={(event) => { const value = event.target.value; setReplyTarget(null); if (value.startsWith('role:')) { const role = value.slice(5); setRecipientRole(role); setRoleFilter(role); setRecipientMode('role'); } else setRecipientMode(value); }}><option value="selected" disabled={!activeAdmin || activeAdmin.adminStatus !== 'active' || activeAdminIsSelf}>{activeAdmin ? `${activeAdmin.adminName} (private)` : 'Choose an active admin'}</option><option value="all">All active admins ({threads.filter((thread) => thread.adminStatus === 'active' && String(thread.adminId) !== String(ownerId)).length})</option>{allRoleValues.map((role) => <option key={role} value={`role:${role}`}>All {roleLabels[role] || role} admins ({threads.filter((thread) => thread.adminStatus === 'active' && String(thread.adminId) !== String(ownerId) && (thread.adminRoles || []).includes(role)).length})</option>)}</select></label>
           {recipientMode !== 'selected' && <label className="owner-reply-toggle" title="Change conversation-wide reply access for admins receiving this broadcast"><input type="checkbox" checked={broadcastReplies} onChange={(event) => { setBroadcastReplies(event.target.checked); setBroadcastRepliesChanged(true); }} /><span>{broadcastReplies ? 'All replies allowed' : 'All replies stopped'}</span></label>}
           <label className={`owner-reply-toggle owner-message-per-message-reply${messageRepliesAllowed ? '' : ' is-disabled'}`} title="This permission is stored on the message and checked by the server"><input type="checkbox" checked={messageRepliesAllowed} onChange={(event) => setMessageRepliesAllowed(event.target.checked)} /><span>{messageRepliesAllowed ? 'Replies to this message allowed' : 'No replies to this message'}</span></label>
           </div>
@@ -375,14 +566,17 @@ export default function OwnerMessages({ onMessagesChanged, ownerId }) {
           <div className="owner-message-compose-input-row">
             <label className="sr-only" htmlFor="owner-message-body">{editingMessageId !== null ? 'Edit sent message' : 'Write a message'}</label><textarea ref={composeRef} id="owner-message-body" rows="2" maxLength="3000" value={body} onChange={(event) => setBody(event.target.value)} placeholder={recipientMode === 'all' ? 'Write a message to all active admins…' : recipientMode === 'role' ? `Write to active ${roleLabels[recipientRole] || recipientRole} admins…` : 'Write a private message…'} disabled={!editingMessageId && recipientMode === 'selected' && (activeAdmin?.adminStatus !== 'active' || activeAdminIsSelf)} required={!pendingFiles.length} />
             <div className="owner-message-compose-actions">
-              {editingMessageId !== null && <small className="owner-message-editing-note">Editing sent message <button type="button" onClick={() => { setEditingMessageId(null); setBody(''); }}>Cancel</button></small>}
+              {replyTarget && <small className="owner-message-replying-note"><i className="fas fa-reply" /> Replying to {replyTarget.senderName || replyTarget.senderEmail}: {(replyTarget.body || 'attachment').slice(0, 90)} <button type="button" onClick={() => setReplyTarget(null)}>Cancel</button></small>}
+              {editingMessageId !== null && <small className="owner-message-editing-note">Editing sent message <button type="button" onClick={() => { setEditingMessageId(null); setReplyTarget(null); setBody(''); }}>Cancel</button></small>}
               {!editingMessageId && recipientMode === 'selected' && activeAdminIsSelf && <small className="owner-message-inactive-note">This is your own account. You can view its conversation but cannot send messages to yourself.</small>}
               {!editingMessageId && recipientMode === 'selected' && activeAdmin && activeAdmin.adminStatus !== 'active' && <small className="owner-message-inactive-note">This account cannot receive messages while it is {activeAdmin.adminStatus}.</small>}
               <button className="owner-message-send" type="submit" disabled={sending || (!body.trim() && !pendingFiles.length) || (!editingMessageId && recipientMode === 'selected' && (activeAdmin?.adminStatus !== 'active' || activeAdminIsSelf)) || (!editingMessageId && recipientMode !== 'selected' && !activeRecipients)}><i className={`fas ${sending ? 'fa-spinner fa-spin' : 'fa-paper-plane'}`} aria-hidden="true" /> {sending ? 'Sending…' : 'Send'}</button>
             </div>
           </div>
-        </form>
+        </form></>}
       </div>
     </div>
+    {forwardMessage && <div className="owner-message-forward-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !forwardingMessage) setForwardMessage(null); }}><form className="owner-message-forward-dialog" role="dialog" aria-modal="true" aria-labelledby="owner-forward-message-title" onSubmit={forwardMessageToAdmin}><h3 id="owner-forward-message-title">Forward message</h3><p>{forwardMessage.attachments?.length ? 'Forward the message text. Attachments are not copied.' : 'Send this message to an active admin conversation.'}</p>{!threads.some((thread) => thread.adminStatus === 'active' && String(thread.adminId) !== String(ownerId)) && <p>No active admin is available to receive a forwarded message.</p>}<label htmlFor="owner-forward-recipient">Admin</label><select id="owner-forward-recipient" value={forwardRecipientId} onChange={(event) => setForwardRecipientId(event.target.value)} required><option value="" disabled>Choose an active admin</option>{threads.filter((thread) => thread.adminStatus === 'active' && String(thread.adminId) !== String(ownerId)).map((thread) => <option key={thread.adminId} value={thread.adminId}>{thread.adminName}</option>)}</select><div><button type="button" onClick={() => setForwardMessage(null)} disabled={forwardingMessage}>Cancel</button><button type="submit" disabled={!forwardRecipientId || forwardingMessage}>{forwardingMessage ? 'Forwarding…' : 'Forward'}</button></div></form></div>}
+    {bulkAction && <div className="owner-message-forward-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !bulkActionBusy) { setBulkAction(''); setBulkConfirmation(''); } }}><form className="owner-message-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="owner-bulk-action-title" onSubmit={confirmBulkAction}><span className="owner-message-delete-icon"><i className="fas fa-triangle-exclamation" /></span><h3 id="owner-bulk-action-title">{bulkAction === 'all' ? 'Delete all admin chat history?' : bulkAction === 'received' ? 'Delete received messages for everyone?' : 'Delete selected sent messages for everyone?'}</h3><p>{bulkAction === 'all' ? 'This permanently deletes private and shared admin chat messages and their attachments across all conversations for everyone. Visitor contact enquiries are not affected. This cannot be undone. Type delete to confirm.' : bulkAction === 'received' ? `This permanently deletes ${selectedReceivedMessageIds.length} selected received message${selectedReceivedMessageIds.length === 1 ? '' : 's'} and their attachments for every participant. Type delete to confirm.` : `This permanently deletes ${selectedSentMessageIds.length} selected sent message${selectedSentMessageIds.length === 1 ? '' : 's'} and their attachments for every participant. Type delete to confirm.`}</p><label htmlFor="owner-bulk-action-confirmation">Type delete</label><input id="owner-bulk-action-confirmation" autoFocus autoComplete="off" value={bulkConfirmation} onChange={(event) => setBulkConfirmation(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape' && !bulkActionBusy) { setBulkAction(''); setBulkConfirmation(''); } }} /><div className="owner-message-delete-actions"><button type="button" onClick={() => { setBulkAction(''); setBulkConfirmation(''); }} disabled={bulkActionBusy}>Cancel</button><button type="submit" disabled={bulkConfirmation !== 'delete' || bulkActionBusy}>{bulkActionBusy ? 'Deleting…' : 'Delete'}</button></div></form></div>}
   </section>;
 }

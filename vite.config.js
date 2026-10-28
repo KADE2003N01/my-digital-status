@@ -20,6 +20,7 @@ const pageTitles = {
   'admin-profile.html': 'My Profile | Portfolio Admin',
   'admin-accounts.html': 'Admin Directory | Portfolio Admin',
   'admin-messages.html': 'Messages | Portfolio Admin',
+  'chatroom-preview.html': 'Chatroom Preview | Portfolio Admin',
   'platform-owner.html': 'Super Admin Portal | Portfolio Admin',
   'admin-reset-password.html': 'Reset Admin Password | Portfolio Admin'
 };
@@ -32,7 +33,7 @@ function reactPageShell() {
         const requestUrl = request.url || '/';
         if (new URL(requestUrl, 'http://localhost').pathname === '/') {
           response.statusCode = 302;
-          response.setHeader('Location', '/src/admin-documents.html');
+          response.setHeader('Location', '/index.html');
           response.end();
           return;
         }
@@ -56,7 +57,7 @@ function reactPageShell() {
         const fileName = path.basename(context.filename || context.path || 'index.html');
         const title = pageTitles[fileName];
         if (!title) return undefined;
-        const admin = fileName.startsWith('admin') || fileName === 'platform-owner.html';
+        const admin = fileName.startsWith('admin') || fileName === 'platform-owner.html' || fileName === 'chatroom-preview.html';
         const noIndex = admin ? '<meta name="robots" content="noindex, nofollow">' : '';
         const description = fileName === 'index.html'
           ? "<meta name=\"description\" content=\"Explore David KWIZERA's portfolio, background, skills, projects and professional documents.\">"
@@ -84,7 +85,7 @@ function reactPageShell() {
       const outputDirectory = path.join(frontendRoot, 'dist');
       const template = readFileSync(path.join(outputDirectory, 'index.html'), 'utf8');
       for (const [fileName, title] of Object.entries(pageTitles)) {
-        const isAdmin = fileName.startsWith('admin') || fileName === 'platform-owner.html';
+        const isAdmin = fileName.startsWith('admin') || fileName === 'platform-owner.html' || fileName === 'chatroom-preview.html';
         const html = template
           .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
           .replace('</head>', `${isAdmin ? '<meta name="robots" content="noindex, nofollow">' : ''}\n  </head>`);
@@ -108,7 +109,7 @@ export default defineConfig({
   server: {
     host: '127.0.0.1',
     port: 5173,
-    strictPort: true,
+    strictPort: false,
     proxy: {
       '/api': `http://127.0.0.1:${backendPort}`
     }

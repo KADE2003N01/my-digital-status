@@ -23,6 +23,7 @@ import {
 } from '../pages/admin/AdminPages.jsx';
 import PlatformOwnerPage from '../pages/platform-owner/PlatformOwnerPage.jsx';
 import AdminSupportPage from '../pages/admin/auth/AdminSupportPage.jsx';
+import ChatRoomPreview from '../pages/admin/ChatRoomPreview.jsx';
 import { API_BASE_URL, API_BASE_URLS } from '../services/api.js';
 import GlobalStyles from '../styles/GlobalStyles.jsx';
 import { LanguageProvider } from '../context/LanguageContext.jsx';
@@ -45,6 +46,7 @@ const adminPages = {
   'admin-profile.html': [AdminProfilePage, 'admin-page auth-pending'],
   'admin-accounts.html': [AdminAccountsPage, 'admin-page auth-pending'],
   'admin-messages.html': [AdminMessagesPage, 'admin-page auth-pending'],
+  'chatroom-preview.html': [ChatRoomPreview, 'chatroom-preview-page-body'],
   'platform-owner.html': [PlatformOwnerPage, 'admin-page auth-pending'],
   'admin-setup-account.html': [AdminPasswordResetPage, 'auth-page'],
   'admin-reset-password.html': [AdminPasswordResetPage, 'auth-page'],
