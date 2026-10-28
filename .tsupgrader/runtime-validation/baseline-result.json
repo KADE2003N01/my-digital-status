@@ -1,0 +1,103 @@
+{
+  "planHash": "1981e58362801187bb1557672dddd559c983396d98203351f1d48d128ad2ed7c",
+  "phase": "baseline",
+  "recordedAtUtc": "2026-10-28T15:29:29.8629071Z",
+  "retryCount": 0,
+  "resetBaseline": true,
+  "complete": true,
+  "result": {
+    "setupSucceeded": true,
+    "setupDurationMs": 0,
+    "setupFailureOutput": null,
+    "assertions": [
+      {
+        "name": "production-build",
+        "kind": "process",
+        "verificationMethod": "exit-code",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 0,
+        "outputSample": "\r\n\u003E kade-status-frontend@1.0.0 build\r\n\u003E vite build\r\n\r\n\u001B[36mvite v7.3.7 \u001B[32mbuilding client environment for production...\u001B[36m\u001B[39m\r\ntransforming...\r\n\u001B[32m\u2713\u001B[39m 156 modules transformed.\r\nrendering chunks...\r\ncomputing gzip size...\r\n\u001B[2mdist/\u001B[22m\u001B[32mindex.html                                \u001B[39m\u001B[1m\u001B[2m  0.82 kB\u001B[22m\u001B[1m\u001B[22m\u001B[2m \u2502 gzip:   0.46 kB\u001B[22m\r\n\u001B[33m\r\n(!) Some chunks are larger than 500 kB after minification. Consider:\r\n- Using dynamic import() to code-split the application\r\n- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\r\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\u001B[39m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/fa-v4compatibility-CpXC6oN1.woff2  \u001B[39m\u001B[1m\u001B[2m  4.80 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/fa-v4compatibility-_TnjveAY.ttf    \u001B[39m\u001B[1m\u001B[2m 10.83 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/fa-regular-400-D2J4JcCD.woff2      \u001B[39m\u001B[1m\u001B[2m 25.48 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/fa-regular-400-Di1vRWh1.ttf        \u001B[39m\u001B[1m\u001B[2m 68.06 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/background image-DqkWkFKf.jpeg     \u001B[39m\u001B[1m\u001B[2m 76.54 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/fa-brands-400-xIUy2dUv.woff2       \u001B[39m\u001B[1m\u001B[2m116.67 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/fa-solid-900-DQw_EAxt.woff2        \u001B[39m\u001B[1m\u001B[2m156.53 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/fa-brands-400-CW6tmtts.ttf         \u001B[39m\u001B[1m\u001B[2m206.48 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/fa-solid-900-CCC0xt37.ttf          \u001B[39m\u001B[1m\u001B[2m419.78 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[35massets/index-CtaLQOoY.css                 \u001B[39m\u001B[1m\u001B[2m214.00 kB\u001B[22m\u001B[1m\u001B[22m\u001B[2m \u2502 gzip:  41.54 kB\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[36massets/index-Dh_qdnkc.js                  \u001B[39m\u001B[1m\u001B[33m829.29 kB\u001B[39m\u001B[22m\u001B[2m \u2502 gzip: 219.56 kB\u001B[22m\r\n\u001B[32m\u2713 built in 1.59s\u001B[39m\r\n",
+        "durationMs": 3103
+      },
+      {
+        "name": "tests-pass",
+        "kind": "process",
+        "verificationMethod": "test-results",
+        "passed": false,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 1,
+        "outputSample": "\r\n\u003E kade-status-frontend@1.0.0 test\r\n\u003E vitest run\r\n\r\n\r\n RUN  v5.0.5 C:/Users/kwize/Desktop/Project/myportfolio/my-digital-status\r\n\r\n \u276F src/tests/api.test.js (0 test)\r\n \u276F src/tests/AdminPages.test.js (0 test)\r\n\r\n\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF Failed Suites 2 \u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\r\n\r\n FAIL  src/tests/AdminPages.test.js [ src/tests/AdminPages.test.js ]\r\nError: Vitest failed to find the runner. One of the following is possible:\r\n- \u0022vitest\u0022 is imported directly without running \u0022vitest\u0022 command\r\n- \u0022vitest\u0022 is imported inside \u0022globalSetup\u0022 (to fix this, use \u0022setupFiles\u0022 instead, because \u0022globalSetup\u0022 runs in a different context)\r\n- \u0022vitest\u0022 is imported inside Vite / Vitest config file\r\n- Otherwise, it might be a Vitest bug. Please report it to https://github.com/vitest-dev/vitest/issues\r\n\r\n \u276F src/tests/AdminPages.test.js:26:11\r\n     24| }\r\n     25|\r\n     26| beforeEach(() =\u003E {\r\n       |           ^\r\n     27|     vi.stubGlobal(\u0027window\u0027, {\r\n     28|         location: { replace: vi.fn() },\r\n\r\n\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF[1/2]\u23AF\r\n\r\n FAIL  src/tests/api.test.js [ src/tests/api.test.js ]\r\nTypeError: Cannot read properties of undefined (reading \u0027config\u0027)\r\n \u276F src/tests/api.test.js:3:9\r\n      1| import { afterEach, describe, expect, it, vi } from \u0027vitest\u0027;\r\n      2|\r\n      3| describe(\u0027resolveApiAssetUrl\u0027, () =\u003E {\r\n       |         ^\r\n      4|   afterEach(() =\u003E {\r\n      5|     vi.unstubAllGlobals();\r\n\r\n\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF\u23AF[2/2]\u23AF\r\n\r\n\r\n Test Files  2 failed (2)\r\n      Tests  no tests\r\n   Start at  17:29:25\r\n   Duration  2.52s (environment 99%, worker 1%)\r\n\r\n",
+        "durationMs": 4074,
+        "testResults": {
+          "testFramework": "vitest",
+          "runnerDetectedFrom": "package_json",
+          "testsTotal": 0,
+          "testsPassed": 0,
+          "testsFailed": 0,
+          "testsSkipped": 0,
+          "parseFailed": true
+        }
+      },
+      {
+        "name": "dev-server-home-200",
+        "kind": "http-probe",
+        "verificationMethod": "http-status",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": null,
+        "outputSample": "HTTP 200\n\u003C!doctype html\u003E\n\u003Chtml lang=\u0022en\u0022\u003E\n  \u003Chead\u003E\n    \u003Cscript type=\u0022module\u0022 src=\u0022/@vite/client\u0022\u003E\u003C/script\u003E\n\n    \u003Cmeta charset=\u0022UTF-8\u0022\u003E\n    \u003Cmeta name=\u0022viewport\u0022 content=\u0022width=device-width, initial-scale=1.0\u0022\u003E\n    \u003Cmeta name=\u0022robots\u0022 content=\u0022noindex, nofollow\u0022\u003E\n    \n    \u003Ctitle\u003EDocuments | Portfolio Admin\u003C/title\u003E\n    \u003Clink rel=\u0022preconnect\u0022 href=\u0022https://fonts.googleapis.com\u0022\u003E\n    \u003Clink rel=\u0022preconnect\u0022 href=\u0022https://fonts.gstatic.com\u0022 crossorigin\u003E\n    \u003Clink href=\u0022https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900\u0026display=swap\u0022 rel=\u0022stylesheet\u0022\u003E\n  \u003C/head\u003E\n  \u003Cbody\u003E\n    \u003Cdiv id=\u0022root\u0022\u003E\u003C/div\u003E\n    \u003Cscript type=\u0022module\u0022 src=\u0022/src/app/main.jsx\u0022\u003E\u003C/script\u003E\n  \u003C/body\u003E\n\u003C/html\u003E\n--- server output ---\n\r\n\u003E kade-status-frontend@1.0.0 dev:vite\r\n\u003E vite --host 127.0.0.1 --port 5174 --strictPort\r\n\r\n\r\n  \u001B[32m\u001B[1mVITE\u001B[22m v7.3.7\u001B[39m  \u001B[2mready in \u001B[0m\u001B[1m416\u001B[22m\u001B[2m\u001B[0m ms\u001B[22m\r\n\r\n  \u001B[32m\u279C\u001B[39m  \u001B[1mLocal\u001B[22m:   \u001B[36mhttp://127.0.0.1:\u001B[1m5174\u001B[22m/\u001B[39m\r\n",
+        "durationMs": 1574
+      }
+    ],
+    "executions": [
+      {
+        "source": "production-build",
+        "resolvedExecutable": "C:\\Program Files\\nodejs\\npm.CMD",
+        "args": [
+          "run",
+          "build"
+        ],
+        "cwd": "c:\\Users\\kwize\\Desktop\\Project\\myportfolio\\my-digital-status",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      },
+      {
+        "source": "tests-pass",
+        "resolvedExecutable": "C:\\Program Files\\nodejs\\npm.CMD",
+        "args": [
+          "test"
+        ],
+        "cwd": "c:\\Users\\kwize\\Desktop\\Project\\myportfolio\\my-digital-status",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      },
+      {
+        "source": "dev-server-home-200",
+        "resolvedExecutable": "C:\\Program Files\\nodejs\\npm.CMD",
+        "args": [
+          "run",
+          "dev:vite",
+          "--",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "5174",
+          "--strictPort"
+        ],
+        "cwd": "c:\\Users\\kwize\\Desktop\\Project\\myportfolio\\my-digital-status",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      }
+    ]
+  }
+}

@@ -30,6 +30,12 @@ function reactPageShell() {
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
         const requestUrl = request.url || '/';
+        if (new URL(requestUrl, 'http://localhost').pathname === '/') {
+          response.statusCode = 302;
+          response.setHeader('Location', '/src/admin-documents.html');
+          response.end();
+          return;
+        }
         const fileName = path.basename(new URL(requestUrl, 'http://localhost').pathname);
         if (!pageTitles[fileName]) return next();
 
