@@ -22,7 +22,13 @@ const pageTitles = {
   'admin-messages.html': 'Messages | Portfolio Admin',
   'chatroom-preview.html': 'Chatroom Preview | Portfolio Admin',
   'platform-owner.html': 'Super Admin Portal | Portfolio Admin',
-  'admin-reset-password.html': 'Reset Admin Password | Portfolio Admin'
+  'admin-reset-password.html': 'Reset Admin Password | Portfolio Admin',
+  'platform-login.html': 'Sign In | Digital Status',
+  'platform-signup.html': 'Create Account | Digital Status',
+  'platform-verify-email.html': 'Verify Email | Digital Status',
+  'platform-forgot-password.html': 'Reset Password | Digital Status',
+  'platform-reset-password.html': 'Choose New Password | Digital Status',
+  'platform-account.html': 'Your Account | Digital Status'
 };
 
 function reactPageShell() {
@@ -57,7 +63,7 @@ function reactPageShell() {
         const fileName = path.basename(context.filename || context.path || 'index.html');
         const title = pageTitles[fileName];
         if (!title) return undefined;
-        const admin = fileName.startsWith('admin') || fileName === 'platform-owner.html' || fileName === 'chatroom-preview.html';
+        const admin = fileName.startsWith('admin') || fileName.startsWith('platform-') || fileName === 'chatroom-preview.html';
         const noIndex = admin ? '<meta name="robots" content="noindex, nofollow">' : '';
         const description = fileName === 'index.html'
           ? "<meta name=\"description\" content=\"Explore David KWIZERA's portfolio, background, skills, projects and professional documents.\">"
@@ -85,7 +91,7 @@ function reactPageShell() {
       const outputDirectory = path.join(frontendRoot, 'dist');
       const template = readFileSync(path.join(outputDirectory, 'index.html'), 'utf8');
       for (const [fileName, title] of Object.entries(pageTitles)) {
-        const isAdmin = fileName.startsWith('admin') || fileName === 'platform-owner.html' || fileName === 'chatroom-preview.html';
+        const isAdmin = fileName.startsWith('admin') || fileName.startsWith('platform-') || fileName === 'chatroom-preview.html';
         const html = template
           .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
           .replace('</head>', `${isAdmin ? '<meta name="robots" content="noindex, nofollow">' : ''}\n  </head>`);

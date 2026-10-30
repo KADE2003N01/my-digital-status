@@ -24,6 +24,7 @@ import {
 import PlatformOwnerPage from '../pages/platform-owner/PlatformOwnerPage.jsx';
 import AdminSupportPage from '../pages/admin/auth/AdminSupportPage.jsx';
 import ChatRoomPreview from '../pages/admin/ChatRoomPreview.jsx';
+import { PlatformAccountPage, PlatformAuthPage } from '../pages/platform-auth/PlatformAuthPages.jsx';
 import { API_BASE_URL, API_BASE_URLS } from '../services/api.js';
 import GlobalStyles from '../styles/GlobalStyles.jsx';
 import { LanguageProvider } from '../context/LanguageContext.jsx';
@@ -52,8 +53,16 @@ const adminPages = {
   'admin-reset-password.html': [AdminPasswordResetPage, 'auth-page'],
   'admin-support.html': [AdminSupportPage, 'auth-page']
 };
+const platformPages = {
+  'platform-login.html': [PlatformAuthPage, 'platform-auth-page'],
+  'platform-signup.html': [PlatformAuthPage, 'platform-auth-page'],
+  'platform-verify-email.html': [PlatformAuthPage, 'platform-auth-page'],
+  'platform-forgot-password.html': [PlatformAuthPage, 'platform-auth-page'],
+  'platform-reset-password.html': [PlatformAuthPage, 'platform-auth-page'],
+  'platform-account.html': [PlatformAccountPage, 'platform-auth-page']
+};
 const fileName = window.location.pathname.split('/').pop() || 'index.html';
-const [Page, bodyClassName] = publicPages[fileName] || adminPages[fileName] || publicPages['index.html'];
+const [Page, bodyClassName] = publicPages[fileName] || adminPages[fileName] || platformPages[fileName] || publicPages['index.html'];
 window.PORTFOLIO_API_BASE_URL = API_BASE_URL;
 window.PORTFOLIO_API_BASE_URLS = API_BASE_URLS;
 document.body.className = bodyClassName;

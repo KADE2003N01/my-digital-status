@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../../../services/api.js';
 import { getStoredSessionToken, storeSessionToken } from '../../../services/adminSession.js';
 import LanguageSelector from '../../../components/LanguageSelector.jsx';
-import LogoutIcon from '../../../components/LogoutIcon.jsx';
 import { useLanguage } from '../../../context/LanguageContext.jsx';
 import './AdminAuthPages.css';
 
@@ -29,6 +28,7 @@ export function AdminLoginPage() {
   const [clearingSession, setClearingSession] = useState(forceSignIn);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [isError, setIsError] = useState(false);
@@ -74,7 +74,7 @@ export function AdminLoginPage() {
     try {
       const response = await apiFetch('/auth/login', {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password })
+        body: JSON.stringify({ email: email.trim(), password, rememberMe })
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || 'Could not sign in. Check your details and try again.');
@@ -91,14 +91,18 @@ export function AdminLoginPage() {
     finally { setSubmitting(false); }
   }
 
-  return <main className="auth-page"><div className="auth-layout">
+  return <main className="auth-page auth-login-page"><div className="auth-layout">
     <LanguageSelector />
     <a className="auth-back-link" href="../index.html"><i className="fas fa-arrow-left" aria-hidden="true" /> {t('Back to portfolio')}</a>
-    <section className="auth-card" aria-labelledby="login-title">
+    <section className="auth-card auth-login-card" aria-labelledby="login-title">
       <div className="auth-heading"><span className="auth-icon"><i className="fas fa-shield-halved" aria-hidden="true" /></span><p className="auth-eyebrow">{t('PRIVATE WORKSPACE')}</p><h1 id="login-title">{t('Welcome back')}</h1><p>{t('Sign in with your administrator credentials to continue.')}</p></div>
       <form className="auth-form" onSubmit={submit}>
-        <label htmlFor="admin-email">{t('Email address')}</label><div className="auth-input-wrap"><i className="far fa-envelope" aria-hidden="true" /><input id="admin-email" name="username" type="email" autoComplete="email" maxLength={254} placeholder="you@example.com" required value={email} onChange={event => setEmail(event.target.value)} /></div>
+        <label htmlFor="admin-email">{t('Email address')}</label><div className="auth-input-wrap"><i className="far fa-envelope" aria-hidden="true" /><input id="admin-email" name="username" type="email" autoComplete="username" maxLength={254} placeholder="you@example.com" required value={email} onChange={event => setEmail(event.target.value)} /></div>
         <label htmlFor="admin-password">{t('Password')}</label><div className="auth-input-wrap"><i className="fas fa-key" aria-hidden="true" /><input id="admin-password" name="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" maxLength={1024} placeholder={t('Enter your password')} required value={password} onChange={event => setPassword(event.target.value)} /><button type="button" className="auth-password-visibility" aria-label={showPassword ? t('Hide password') : t('Show password')} onClick={() => setShowPassword(value => !value)}><i className={`far ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`} aria-hidden="true" /></button></div>
+        <label className="auth-remember" htmlFor="remember-admin-session">
+          <input id="remember-admin-session" name="rememberMe" type="checkbox" checked={rememberMe} onChange={event => setRememberMe(event.target.checked)} />
+          <span><strong>{t('Remember me on this device')}</strong><small>{t('Keep this device signed in for 30 days. Your password is never stored by this site.')}</small></span>
+        </label>
         <AuthFeedback error={isError}>{feedback}</AuthFeedback>
         <button className="auth-submit" type="submit" disabled={submitting || clearingSession}><span>{clearingSession ? t('Checking credentials…') : submitting ? t('Checking credentials…') : t('Sign in to admin')}</span><i className={`fas ${submitting || clearingSession ? 'fa-spinner fa-spin' : 'fa-arrow-right'}`} aria-hidden="true" /></button>
       </form>
@@ -106,8 +110,6 @@ export function AdminLoginPage() {
       <p className="auth-onboarding-note">{t('New administrators join by invitation. If you have already been invited but cannot find your setup email, request another link.')}</p>
       <a className="auth-recovery-link" href="admin-setup-account.html"><i className="fas fa-user-plus" aria-hidden="true" /> {t('Resend my setup link')}</a>
       <a className="auth-recovery-link" href="admin-support.html"><i className="fas fa-life-ring" aria-hidden="true" /> Need help accessing your admin account? Send a support request.</a>
-      <p className="auth-footnote auth-signout-hint"><LogoutIcon /> {t('Signed in before? Use the Log out symbol at the bottom of the workspace sidebar to end your session safely.')}</p>
-      <p className="auth-footnote auth-rail-hint"><i className="fas fa-angles-left" aria-hidden="true" /> {t('Tip: the « button at the top of the sidebar shrinks it to icons, giving the page more room. Click » to bring the labels back.')}</p>
       <p className="auth-footnote"><i className="fas fa-lock" aria-hidden="true" /> {t('Secure sign-in · Administrator access only')}</p>
     </section>
     <footer className="auth-footer"><p>© {new Date().getFullYear()} · {t('Administrator access')}</p><p>Powered by KadeTech | <a href="tel:+250788950833">Contact</a></p></footer>
