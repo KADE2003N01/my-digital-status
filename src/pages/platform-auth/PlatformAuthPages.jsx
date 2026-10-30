@@ -70,7 +70,7 @@ function PlatformAuthForm({ type }) {
       } else if (isLogin) {
         await postAccountRequest('login', { email, password });
         const requestedNext = new URLSearchParams(window.location.search).get('next');
-        window.location.replace(requestedNext === 'platform-account.html' ? requestedNext : 'platform-account.html');
+        window.location.replace(requestedNext === 'platform-dashboard.html' ? requestedNext : 'platform-dashboard.html');
       } else if (isForgot) {
         const result = await postAccountRequest('forgot-password', { email });
         setFeedback(result.message);
@@ -191,8 +191,8 @@ export function PlatformAccountPage() {
 
   return <PlatformAuthLayout
     title={user ? `Welcome, ${user.displayName}` : 'Your account'}
-    description="Your account is ready. Portfolio editing will appear here as the next roadmap phase is implemented."
-    links={<a href="index.html">View the existing portfolio</a>}
+    description="Manage your account and build a separate Digital Status portfolio."
+    links={<><a href="platform-dashboard.html">Open portfolio dashboard</a><a href="index.html">View the existing portfolio</a></>}
   >
     {user && <p className="platform-auth-user-email">{user.email}</p>}
     <StatusMessage message={feedback} error={isError} />

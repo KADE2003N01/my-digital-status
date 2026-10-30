@@ -186,10 +186,10 @@ nav {
   gap: 20px;
   min-height: 72px;
   padding: 10px clamp(16px, 5vw, 64px);
-  border-bottom: 1px solid rgba(16, 105, 38, 0.45);
-  background: #15803d;
+  border-bottom: 1px solid var(--accent-strong);
+  background: var(--accent);
   color: #ffffff;
-  box-shadow: 0 2px 14px rgba(21, 128, 61, 0.35);
+  box-shadow: 0 2px 14px rgba(29, 78, 216, 0.2);
   transition: background 0.25s ease;
 }
 
@@ -206,7 +206,7 @@ nav {
 }
 
 .nav-logo:hover .nav-brand-name {
-  color: var(--accent);
+  color: #dbeafe;
 }
 
 .nav-avatar {
@@ -227,7 +227,7 @@ nav {
   height: 46px;
   border-radius: 50%;
   background: #ffffff;
-  color: #15803d;
+  color: var(--accent);
   font-weight: 850;
   font-size: 1.1rem;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
@@ -272,7 +272,7 @@ nav {
   left: 12px;
   height: 2px;
   border-radius: 2px;
-  background: var(--accent);
+  background: #ffffff;
   content: "";
   transform: scaleX(0);
   transform-origin: center;

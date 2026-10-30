@@ -28,7 +28,10 @@ const pageTitles = {
   'platform-verify-email.html': 'Verify Email | Digital Status',
   'platform-forgot-password.html': 'Reset Password | Digital Status',
   'platform-reset-password.html': 'Choose New Password | Digital Status',
-  'platform-account.html': 'Your Account | Digital Status'
+  'platform-account.html': 'Your Account | Digital Status',
+  'platform-dashboard.html': 'Portfolio Dashboard | Digital Status',
+  'platform-portfolio.html': 'Portfolio Editor | Digital Status',
+  'portfolio.html': 'Professional Portfolio | Digital Status'
 };
 
 function reactPageShell() {
@@ -37,10 +40,23 @@ function reactPageShell() {
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
         const requestUrl = request.url || '/';
-        if (new URL(requestUrl, 'http://localhost').pathname === '/') {
+        const pathname = new URL(requestUrl, 'http://localhost').pathname;
+        if (pathname === '/') {
           response.statusCode = 302;
           response.setHeader('Location', '/index.html');
           response.end();
+          return;
+        }
+        if (/^\/u\/[a-z0-9-]+\/?$/i.test(pathname)) {
+          try {
+            const template = readFileSync(path.join(frontendRoot, 'index.html'), 'utf8');
+            const html = await server.transformIndexHtml(requestUrl, template);
+            response.statusCode = 200;
+            response.setHeader('Content-Type', 'text/html; charset=utf-8');
+            response.end(html);
+          } catch (error) {
+            next(error);
+          }
           return;
         }
         const fileName = path.basename(new URL(requestUrl, 'http://localhost').pathname);

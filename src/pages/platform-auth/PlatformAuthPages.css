@@ -3,10 +3,7 @@
   min-height: 100svh;
   padding: 48px 20px;
   color: #17243b;
-  background:
-    radial-gradient(ellipse at 12% 18%, rgba(59, 130, 246, 0.16), transparent 34%),
-    radial-gradient(ellipse at 88% 82%, rgba(14, 165, 233, 0.12), transparent 36%),
-    linear-gradient(145deg, #edf3fd, #f8faff 58%, #e8eef9);
+  background: var(--bg-soft);
 }
 
 .platform-auth-shell {
