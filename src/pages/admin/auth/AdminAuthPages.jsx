@@ -116,7 +116,7 @@ export function AdminLoginPage() {
           <input id="remember-admin-session" name="rememberMe" type="checkbox" checked={rememberMe} onChange={event => setRememberMe(event.target.checked)} />
           <span><strong>{t('Remember me on this device')}</strong><small>{t('Keep this device signed in for 30 days. Your password is never stored by this site.')}</small></span>
         </label>
-        <AuthFeedback error={isError}>{accountMissing ? <>No admin account was found for this email. <a href="admin-support.html?category=admin_invitation">Click here to request yours</a> through the invitation process.</> : feedback}</AuthFeedback>
+        <AuthFeedback error={isError || accountMissing}>{accountMissing ? <>No admin account was found for this email! <a href="admin-support.html?category=admin_invitation">Click here to request yours</a> through the invitation process!</> : feedback}</AuthFeedback>
         <button className="auth-submit" type="submit" disabled={submitting || clearingSession}><span>{clearingSession ? t('Checking credentials…') : submitting ? t('Checking credentials…') : t('Sign in to admin')}</span><i className={`fas ${submitting || clearingSession ? 'fa-spinner fa-spin' : 'fa-arrow-right'}`} aria-hidden="true" /></button>
       </form>
       <a className="auth-recovery-link" href="admin-reset-password.html">{t('Forgot your password?')}</a>
