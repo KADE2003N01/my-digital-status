@@ -12,7 +12,7 @@ describe('resolveApiAssetUrl', () => {
     const path = '/api/homepage/profile-image/profile-example.jpg';
 
     expect(resolveApiAssetUrl(`http://localhost:5000${path}`))
-      .toBe(path);
+      .toBe(`https://kade-status-backend.onrender.com${path}`);
   });
 
   it('keeps localhost image URLs for local development', async () => {
