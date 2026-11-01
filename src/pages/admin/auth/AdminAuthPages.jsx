@@ -93,7 +93,7 @@ export function AdminLoginPage() {
       }
       window.location.replace(loginDestination(requestedDestination));
     } catch (error) {
-      if (error.code === 'ADMIN_NOT_FOUND') {
+      if (error.code === 'ADMIN_NOT_FOUND' || error.code === 'ADMIN_SETUP_REQUIRED') {
         setAccountMissing(true);
         setIsError(false);
       } else {
@@ -116,13 +116,13 @@ export function AdminLoginPage() {
           <input id="remember-admin-session" name="rememberMe" type="checkbox" checked={rememberMe} onChange={event => setRememberMe(event.target.checked)} />
           <span><strong>{t('Remember me on this device')}</strong><small>{t('Keep this device signed in for 30 days. Your password is never stored by this site.')}</small></span>
         </label>
-        <AuthFeedback error={isError} className={accountMissing ? 'account-missing' : ''}>{accountMissing ? <>No admin account was found for this email! <a href="admin-support.html?category=admin_invitation">Click here to request yours</a> through the invitation process!</> : feedback}</AuthFeedback>
+        <AuthFeedback error={isError} className={accountMissing ? 'account-missing' : ''}>{accountMissing ? t('We could not find an administrator account for these details. If you need access, click the support link below to request an invitation.') : feedback}</AuthFeedback>
         <button className="auth-submit" type="submit" disabled={submitting || clearingSession}><span>{clearingSession ? t('Checking credentials…') : submitting ? t('Checking credentials…') : t('Sign in to admin')}</span><i className={`fas ${submitting || clearingSession ? 'fa-spinner fa-spin' : 'fa-arrow-right'}`} aria-hidden="true" /></button>
       </form>
       <a className="auth-recovery-link" href="admin-reset-password.html">{t('Forgot your password?')}</a>
       <a className="auth-login-help-link" href="admin-support.html">
         <i className="fas fa-life-ring" aria-hidden="true" />
-        <span><strong>{t('Do you need support?')}</strong><small>{t('Choose the request type that matches your account.')}</small></span>
+        <span><strong>{t('Do you need support?')}</strong><small>{t('Click here to request an admin invitation or get account help.')}</small></span>
         <i className="fas fa-arrow-right auth-login-help-arrow" aria-hidden="true" />
       </a>
       <p className="auth-footnote">{t('Secure sign-in · Administrator access only')}</p>

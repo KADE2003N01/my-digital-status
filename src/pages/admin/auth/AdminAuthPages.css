@@ -175,7 +175,15 @@
   min-height: 0;
   overflow-wrap: anywhere;
 }
-.auth-login-card .auth-feedback.account-missing { color: var(--text); }
+.auth-login-card .auth-feedback.account-missing {
+  padding: 11px 13px;
+  border: 1px solid #f1d89b;
+  border-radius: 10px;
+  color: #59451b;
+  background: #fff9e9;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
 .auth-login-card .auth-feedback a { color: var(--accent); font-weight: 750; text-decoration: underline; text-underline-offset: 2px; }
 .auth-login-card .auth-feedback a:hover { color: var(--accent-strong); }
 
