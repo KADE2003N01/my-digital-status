@@ -1,13 +1,15 @@
-const configuredApiUrl = import.meta.env.VITE_PORTFOLIO_API_BASE_URL;
+// Accept the previous env name during migration, but prefer the documented
+// VITE_PORTFOLIO_API_BASE_URL setting used by production builds.
+const configuredApiUrl = import.meta.env.VITE_PORTFOLIO_API_BASE_URL
+  || import.meta.env.VITE_API_BASE_URL;
 const localApiPort = Number(import.meta.env.VITE_PORTFOLIO_API_PORT) || 5000;
-const liveApiUrl = 'https://kade-status-backend-1d3q.onrender.com/api';
 const { hostname } = window.location;
 const localApiHost = hostname === '127.0.0.1' ? '127.0.0.1' : 'localhost';
 const localApiUrl = `http://${localApiHost}:${localApiPort}/api`;
 const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
 const defaultApiUrls = isLocalHost
   ? ['/api', localApiUrl]
-  : ['/api', liveApiUrl];
+  : ['/api'];
 
 export const API_BASE_URLS = [...new Set([
   configuredApiUrl,
@@ -36,6 +38,11 @@ export function resolveApiAssetUrl(value) {
       const url = new URL(candidate);
       if (!isLocalPage && localHost(url.hostname) && url.pathname.startsWith('/api/') && publicApiBase) {
         return `${publicApiBase}${url.pathname.slice(4)}${url.search}${url.hash}`;
+      }
+      if (!isLocalPage && localHost(url.hostname) && url.pathname.startsWith('/api/')) {
+        // Let the static host's /api rewrite serve this asset when no direct
+        // backend URL was supplied at build time.
+        return `${url.pathname}${url.search}${url.hash}`;
       }
       return candidate;
     } catch { return ''; }
