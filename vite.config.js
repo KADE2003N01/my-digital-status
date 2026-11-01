@@ -13,6 +13,7 @@ const pageTitles = {
   'document.html': 'Documents | David KWIZERA Portfolio',
   'contact.html': 'Contact | David KWIZERA Portfolio',
   'admin-login.html': 'Admin Login | Kade Portfolio',
+  'admin-support.html': 'Administrator Support | Kade Portfolio',
   'admin.html': 'Portfolio Admin | Kade',
   'admin-downloads.html': 'Downloads | Portfolio Admin',
   'admin-homepage.html': 'Landing Page | Portfolio Admin',
