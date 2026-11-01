@@ -406,7 +406,7 @@ function AdminFrame({ session, logout, logoutError, loggingOut, active, download
         const loadOwnerActivity = () => {
             apiRequest('/platform-owner/inbox-counts', { silentNotification: true })
                 .then((response) => responseJson(response, 'Could not load super-admin activity.'))
-                .then((result) => { if (active) setOwnerActivityCount((Number(result.requests) || 0) + (Number(result.messages) || 0)); })
+                .then((result) => { if (active) setOwnerActivityCount(Number(result.requests) || 0); })
                 .catch(() => { /* Keep the last badge value if this count request fails. */ });
         };
         loadOwnerActivity();
