@@ -186,10 +186,10 @@ nav {
   gap: 20px;
   min-height: 72px;
   padding: 10px clamp(16px, 5vw, 64px);
-  border-bottom: 1px solid var(--accent-strong);
-  background: var(--accent);
+  border-bottom: 1px solid rgba(16, 105, 38, 0.45);
+  background: #15803d;
   color: #ffffff;
-  box-shadow: 0 2px 14px rgba(29, 78, 216, 0.2);
+  box-shadow: 0 2px 14px rgba(21, 128, 61, 0.35);
   transition: background 0.25s ease;
 }
 
