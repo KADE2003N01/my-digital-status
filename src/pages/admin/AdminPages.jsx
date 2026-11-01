@@ -3,6 +3,7 @@ import { apiFetch, resolveApiAssetUrl } from '../../services/api.js';
 import TimedNotification from '../../components/TimedNotification.jsx';
 import LanguageSelector from '../../components/LanguageSelector.jsx';
 import LogoutIcon from '../../components/LogoutIcon.jsx';
+import ExpandableCell from '../../components/ExpandableCell.jsx';
 import { discardMessageAttachments, MessageAttachmentList, MessageAttachmentPicker, uploadMessageAttachment } from '../../components/MessageAttachments.jsx';
 import PhoneNumberField, { isValidInternationalPhone } from '../../components/PhoneNumberField.jsx';
 import { getTranslation, hasTranslation, useLanguage } from '../../context/LanguageContext.jsx';
@@ -15,6 +16,7 @@ export function AdminLoginPage() { return <AdminLoginView />; }
 export function AdminPasswordResetPage() { return <AdminPasswordResetView />; }
 
 const ADMIN_LOGIN_URL = 'admin-login.html';
+const PUBLIC_HOME_URL = '/index.html';
 const AdminSessionContext = createContext(null);
 const ADMIN_NOTIFICATION_EVENT = 'kade-admin-notification';
 const ADMIN_PROFILE_IMAGE_UPDATED = 'kade-admin-profile-image-updated';
@@ -160,7 +162,7 @@ function useAdminSession() {
             const response = await apiRequest('/auth/logout', { method: 'POST' });
             if (!response.ok) throw new Error('The server could not end this admin session.');
             storeSessionToken('');
-            window.location.replace(ADMIN_LOGIN_URL);
+            window.location.replace(PUBLIC_HOME_URL);
         } catch (error) {
             console.error('Admin logout failed:', error);
             setLogoutError('Could not log out. Check the connection and try again.');
@@ -422,7 +424,12 @@ function AdminFrame({ session, logout, logoutError, loggingOut, active, download
         };
         loadUnreadCount();
         const intervalId = window.setInterval(loadUnreadCount, 15000);
-        return () => { active = false; window.clearInterval(intervalId); };
+        window.addEventListener('admin-messages-read', loadUnreadCount);
+        return () => {
+            active = false;
+            window.clearInterval(intervalId);
+            window.removeEventListener('admin-messages-read', loadUnreadCount);
+        };
     }, [session.role, session.roles]);
     const links = [
         { id: 'overview', href: 'admin.html', icon: 'fa-chart-pie', text: 'Overview' },
@@ -495,7 +502,7 @@ function AdminFrame({ session, logout, logoutError, loggingOut, active, download
                             {link.id === 'messages' && <span className={`nav-count${messageCount > 0 ? ' has-new' : ''}${railCollapsed ? ' is-rail-count' : ''}`} aria-label={`${messageCount} unread messages`}>{messageCount > 0 ? messageCount : null}</span>}
                         </a>
                     ))}
-                    {hasRole('platform_owner') && <a className={`admin-nav-link${ownerActivityCount > 0 ? ' has-owner-activity' : ''}`} href="platform-owner.html" title={ownerActivityCount ? `Super-admin workspace: ${ownerActivityCount} items need attention` : t('Control Admins')} aria-label={ownerActivityCount ? `Control Admins, ${ownerActivityCount} items need attention` : t('Control Admins')} onClick={collapseRailForNavigation}><i className="fas fa-shield-halved" aria-hidden="true" /><span>{t('Control Admins')}</span>{ownerActivityCount > 0 && <span className="nav-count owner-activity-count" aria-label={`${ownerActivityCount} super-admin items need attention`}>{ownerActivityCount > 99 ? '99+' : ownerActivityCount}</span>}</a>}
+                    {hasRole('platform_owner') && <a className={`admin-nav-link${ownerActivityCount > 0 ? ' has-owner-activity' : ''}`} href="platform-owner.html" title={ownerActivityCount ? `Super-admin workspace: ${ownerActivityCount} new item${ownerActivityCount === 1 ? '' : 's'} need attention` : t('Control Admins')} aria-label={ownerActivityCount ? `Control Admins, ${ownerActivityCount} new item${ownerActivityCount === 1 ? '' : 's'} need attention` : t('Control Admins')} onClick={collapseRailForNavigation}><i className="fas fa-shield-halved" aria-hidden="true" /><span>{t('Control Admins')}</span>{ownerActivityCount > 0 && <span className="nav-count owner-activity-count" aria-label={`${ownerActivityCount} new super-admin item${ownerActivityCount === 1 ? '' : 's'} need attention`}>{ownerActivityCount > 99 ? '99+' : ownerActivityCount}</span>}</a>}
                     <AdminThemeToggle />
                     <LanguageSelector />
                     <div className="admin-sidebar-note">
@@ -626,15 +633,8 @@ export function AdminDownloadsPage() {
 }
 
 function DownloadReason({ text }) {
-    const [expanded, setExpanded] = useState(false);
     const value = typeof text === 'string' && text.trim() ? text.trim() : 'No purpose provided';
-    const needsExpansion = value.length > 150;
-    return <div className="download-reason-wrap">
-        <small className={`download-reason${expanded ? ' expanded' : ''}`}>{value}</small>
-        {needsExpansion && <button className="download-reason-toggle" type="button" aria-expanded={expanded} onClick={() => setExpanded((current) => !current)}>
-            {expanded ? 'Read less' : 'Read more'} <i className={`fas fa-chevron-${expanded ? 'up' : 'down'}`} aria-hidden="true" />
-        </button>}
-    </div>;
+    return <ExpandableCell className="download-reason-wrap" buttonClassName="download-reason-toggle">{value}</ExpandableCell>;
 }
 
 function DownloadsContent() {
@@ -697,10 +697,10 @@ function DownloadsContent() {
                                 <tbody>
                                     {(listExpanded ? filtered : filtered.slice(0, 2)).map((item) => (
                                         <tr key={item.id}>
-                                            <td><div className="visitor-cell"><span className="visitor-name">{item.name}</span></div></td>
-                                            <td><div className="download-contact-details">{item.email && <span className="contact-cell"><i className="fas fa-envelope" aria-hidden="true" /><span>{item.email}</span></span>}{item.phone && <span className="contact-cell"><i className="fas fa-phone" aria-hidden="true" /><span>{item.phone}</span></span>}</div></td>
+                                            <td><div className="visitor-cell"><ExpandableCell className="visitor-name">{item.name}</ExpandableCell></div></td>
+                                            <td><div className="download-contact-details">{item.email && <span className="contact-cell"><i className="fas fa-envelope" aria-hidden="true" /><ExpandableCell>{item.email}</ExpandableCell></span>}{item.phone && <span className="contact-cell"><i className="fas fa-phone" aria-hidden="true" /><ExpandableCell>{item.phone}</ExpandableCell></span>}</div></td>
                                             <td><div className="download-type-checks"><label><input type="checkbox" checked={Boolean(item.downloadedAt) && item.documentType === 'cv'} disabled readOnly /><span>CV</span></label><label><input type="checkbox" checked={Boolean(item.downloadedAt) && item.documentType === 'certificate'} disabled readOnly /><span>Cert</span></label></div></td>
-                                            <td><strong>{item.document}</strong><DownloadReason text={item.reason} /></td>
+                                            <td><strong><ExpandableCell>{item.document}</ExpandableCell></strong><DownloadReason text={item.reason} /></td>
                                             <td>{formatDateTime(item.downloadedAt || item.requestedAt)}</td>
                                             <td><span className={`status-badge${item.downloadedAt || item.downloadStatus === 'downloaded' ? ' downloaded' : item.downloadStatus === 'failed' ? ' failed' : ' requested'}`} title={item.downloadedAt || item.downloadStatus === 'downloaded' ? 'Download completed' : item.downloadStatus === 'failed' ? 'Download failed' : 'Awaiting download'}>{item.downloadedAt || item.downloadStatus === 'downloaded' ? <><i className="fas fa-arrow-down" aria-hidden="true" /><i className="fas fa-check" aria-hidden="true" /></> : item.downloadStatus === 'failed' ? <i className="fas fa-question" aria-label="Download failed" /> : <i className="fas fa-hourglass-half" aria-label="Requested" />}</span></td>
                                             <td><button className="download-delete-button" type="button" aria-label={`Delete request from ${item.name}`} title="Delete request" disabled={deletingId === item.id} onClick={() => deleteDownload(item)}><i className="fas fa-trash-can" aria-hidden="true" /></button></td>
@@ -1282,6 +1282,7 @@ function AdminMessagesContent() {
         if (inboxMode !== 'platform' || !activeThreadId || !latestUnreadPlatformMessage) return;
         apiRequest(`/messages/threads/${latestUnreadPlatformMessage.threadId}/read${adminWorkspaceQuery}`, { method: 'POST', silentNotification: true, body: JSON.stringify({ senderId: Number(recipientOwnerId) }) })
             .then(async () => {
+                window.dispatchEvent(new Event('admin-messages-read'));
                 setMessages((current) => current.map((message) => message.threadId === latestUnreadPlatformMessage.threadId
                     && message.senderRole === 'platform_owner'
                     && message.senderEmail !== session?.email
@@ -1296,7 +1297,10 @@ function AdminMessagesContent() {
     useEffect(() => {
         if (inboxMode !== 'visitors' || !activeVisitor || activeVisitor.isRead || (window.matchMedia('(max-width: 768px)').matches && !mobilePlatformChatOpen)) return;
         apiRequest(`/messages/visitors/${activeVisitor.id}/read`, { method: 'POST', silentNotification: true })
-            .then(() => loadMessages())
+            .then(() => {
+                window.dispatchEvent(new Event('admin-messages-read'));
+                return loadMessages();
+            })
             .catch((requestError) => setError(displayError(requestError, 'Could not mark this visitor message as read.')));
     }, [inboxMode, activeVisitor?.id, activeVisitor?.isRead, mobilePlatformChatOpen, loadMessages]);
 
@@ -1665,9 +1669,9 @@ function AdminAccountsContent() {
                 <table className="download-table admin-account-table">
                     <thead><tr><th>{t('NAME')}</th><th>{t('PHONE')}</th><th>{t('EMAIL')}</th><th>{t('PASSWORD')}</th><th>{t('RESET')}</th></tr></thead>
                     <tbody>{visibleAdmins.map((admin) => <tr key={admin.id}>
-                        <td><strong>{admin.displayName}</strong></td>
-                        <td>{admin.phone || t('Not provided')}</td>
-                        <td>{admin.email}</td>
+                        <td><strong><ExpandableCell>{admin.displayName}</ExpandableCell></strong></td>
+                        <td><ExpandableCell>{admin.phone || t('Not provided')}</ExpandableCell></td>
+                        <td><ExpandableCell>{admin.email}</ExpandableCell></td>
                         <td><span className="password-protected"><i className="fas fa-lock" aria-hidden="true" /> {t('Protected')}</span></td>
                         <td><button className="admin-button quiet" type="button" disabled={busyId === admin.id} onClick={() => sendResetLink(admin)}><i className={`fas ${busyId === admin.id ? 'fa-spinner fa-spin' : 'fa-envelope'}`} aria-hidden="true" /> {busyId === admin.id ? t('Sending…') : t('Send reset link')}</button></td>
                     </tr>)}</tbody>
@@ -1687,7 +1691,7 @@ function AdminAccountsContent() {
                     const failed = event.action.includes('failed');
                     const actionLabel = event.action === 'admin_password_reset_completed' ? t('Password reset completed') : event.action.includes('setup_link') ? t('Account setup link requested') : event.action.includes('link') || event.action === 'admin_password_reset_sent' ? t('Reset link requested') : t('Password reset activity');
                     const timestamp = event.createdAt ? new Date(event.createdAt.includes('T') ? event.createdAt : `${event.createdAt.replace(' ', 'T')}Z`) : null;
-                    return <tr key={event.id}><td>{actionLabel}</td><td>{event.targetEmail || event.actorEmail || '—'}</td><td><span className={`admin-reset-outcome ${failed ? 'failed' : 'done'}`}>{failed ? t('Failed') : t('Done')}</span></td><td><time>{timestamp && !Number.isNaN(timestamp.getTime()) ? timestamp.toLocaleString() : event.createdAt || '—'}</time></td></tr>;
+                    return <tr key={event.id}><td><ExpandableCell>{actionLabel}</ExpandableCell></td><td><ExpandableCell>{event.targetEmail || event.actorEmail || 'Unknown account'}</ExpandableCell></td><td><span className={`admin-reset-outcome ${failed ? 'failed' : 'done'}`}>{failed ? t('Failed') : t('Done')}</span></td><td><time>{timestamp && !Number.isNaN(timestamp.getTime()) ? timestamp.toLocaleString() : event.createdAt || '—'}</time></td></tr>;
                 })}</tbody></table> : <p className="admin-account-activity-empty">{t('No activity matches your search.')}</p> : <p className="admin-account-activity-empty">{t('No password reset activity has been recorded yet.')}</p>}
             </div>
         </section>

@@ -32,6 +32,7 @@ export function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [isError, setIsError] = useState(false);
+  const [accountMissing, setAccountMissing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -69,7 +70,7 @@ export function AdminLoginPage() {
   }, [requestedDestination, forceSignIn]);
 
   async function submit(event) {
-    event.preventDefault(); setSubmitting(true); setFeedback(''); setIsError(false);
+    event.preventDefault(); setSubmitting(true); setFeedback(''); setIsError(false); setAccountMissing(false);
     if (clearingSession) { setSubmitting(false); return; }
     try {
       const response = await apiFetch('/auth/login', {
@@ -77,7 +78,11 @@ export function AdminLoginPage() {
         body: JSON.stringify({ email: email.trim(), password, rememberMe })
       });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || 'Could not sign in. Check your details and try again.');
+      if (!response.ok) {
+        const loginError = new Error(result.error || 'Could not sign in. Check your details and try again.');
+        loginError.code = result.code;
+        throw loginError;
+      }
       storeSessionToken(result.sessionToken || '');
       const token = getStoredSessionToken();
       const check = await apiFetch('/auth/me', { credentials: 'include', headers: token ? { Authorization: `Bearer ${token}` } : undefined });
@@ -87,7 +92,15 @@ export function AdminLoginPage() {
         throw new Error('Your browser could not verify the new session. Allow cookies for this site and try again.');
       }
       window.location.replace(loginDestination(requestedDestination));
-    } catch (error) { setFeedback(t(error.message || 'Could not sign in. Please try again.')); setIsError(true); }
+    } catch (error) {
+      if (error.code === 'ADMIN_NOT_FOUND') {
+        setAccountMissing(true);
+        setIsError(false);
+      } else {
+        setFeedback(t(error.message || 'Could not sign in. Please try again.'));
+        setIsError(true);
+      }
+    }
     finally { setSubmitting(false); }
   }
 
@@ -103,14 +116,16 @@ export function AdminLoginPage() {
           <input id="remember-admin-session" name="rememberMe" type="checkbox" checked={rememberMe} onChange={event => setRememberMe(event.target.checked)} />
           <span><strong>{t('Remember me on this device')}</strong><small>{t('Keep this device signed in for 30 days. Your password is never stored by this site.')}</small></span>
         </label>
-        <AuthFeedback error={isError}>{feedback}</AuthFeedback>
+        <AuthFeedback error={isError}>{accountMissing ? <>No admin account was found for this email. <a href="admin-support.html?category=admin_invitation">Click here to request yours</a> through the invitation process.</> : feedback}</AuthFeedback>
         <button className="auth-submit" type="submit" disabled={submitting || clearingSession}><span>{clearingSession ? t('Checking credentials…') : submitting ? t('Checking credentials…') : t('Sign in to admin')}</span><i className={`fas ${submitting || clearingSession ? 'fa-spinner fa-spin' : 'fa-arrow-right'}`} aria-hidden="true" /></button>
       </form>
       <a className="auth-recovery-link" href="admin-reset-password.html">{t('Forgot your password?')}</a>
-      <p className="auth-onboarding-note">{t('New administrators join by invitation. If you have already been invited but cannot find your setup email, request another link.')}</p>
-      <a className="auth-recovery-link" href="admin-setup-account.html"><i className="fas fa-user-plus" aria-hidden="true" /> {t('Resend my setup link')}</a>
-      <a className="auth-recovery-link" href="admin-support.html"><i className="fas fa-life-ring" aria-hidden="true" /> Need help accessing your admin account? Send a support request.</a>
-      <p className="auth-footnote"><i className="fas fa-lock" aria-hidden="true" /> {t('Secure sign-in · Administrator access only')}</p>
+      <a className="auth-login-help-link" href="admin-support.html">
+        <i className="fas fa-life-ring" aria-hidden="true" />
+        <span><strong>{t('Do you need support?')}</strong><small>{t('Choose the request type that matches your account.')}</small></span>
+        <i className="fas fa-arrow-right auth-login-help-arrow" aria-hidden="true" />
+      </a>
+      <p className="auth-footnote">{t('Secure sign-in · Administrator access only')}</p>
     </section>
     <footer className="auth-footer"><p>© {new Date().getFullYear()} · {t('Administrator access')}</p><p>Powered by KadeTech | <a href="tel:+250788950833">Contact</a></p></footer>
   </div></main>;
@@ -121,6 +136,8 @@ export function AdminPasswordResetPage() {
   const token = useMemo(() => new URLSearchParams(window.location.search).get('token') || '', []);
   const isSetupRequest = !token && window.location.pathname.split('/').pop() === 'admin-setup-account.html';
   const [email, setEmail] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -143,7 +160,15 @@ export function AdminPasswordResetPage() {
       .then(async response => {
         const result = await response.json().catch(() => ({}));
         if (!response.ok || !result.valid) throw new Error(result.error || 'This link has expired or already been used.');
-        if (current) { setPurpose(result.purpose || 'reset'); setLinkValid(true); }
+        if (current) {
+          setPurpose(result.purpose || 'reset');
+          if (result.profile) {
+            setDisplayName(result.profile.displayName || '');
+            setEmail(result.profile.email || '');
+            setPhone(result.profile.phone || '');
+          }
+          setLinkValid(true);
+        }
       })
       .catch(error => { if (current) { setLinkValid(false); setIsError(true); setFeedback(error.message || 'This link has expired or already been used.'); } })
       .finally(() => { if (current) setCheckingLink(false); });
@@ -158,7 +183,7 @@ export function AdminPasswordResetPage() {
       const requestPath = isSetupRequest ? '/auth/setup-link/request' : '/auth/password-reset/request';
       const response = await apiFetch(token ? '/auth/password-reset/confirm' : requestPath, {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(token ? { token, password } : { email: email.trim() })
+        body: JSON.stringify(token ? { token, password, ...(purpose === 'setup' ? { displayName: displayName.trim(), phone: phone.trim() } : {}) } : { email: email.trim() })
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || 'Could not complete this request. Please try again.');
@@ -180,9 +205,12 @@ export function AdminPasswordResetPage() {
       <div className="auth-heading"><span className="auth-icon"><i className={`fas ${isSetup ? 'fa-user-check' : 'fa-key'}`} aria-hidden="true" /></span><p className="auth-eyebrow">{isSetup ? t('NEW ADMIN ACCOUNT') : t('ACCOUNT RECOVERY')}</p><h1 id="reset-title">{isSetupRequest ? t('Resend setup invitation') : isSetup ? t('Set up your password') : t(token ? 'Reset password' : 'Forgot password?')}</h1><p>{showRequestForm ? isSetupRequest ? t('Enter the email address that received your administrator invitation. We will send a new setup link if the invitation is still pending.') : t('Enter your admin email. If it belongs to an active administrator account, we will email a one-time password reset link.') : isSetup ? t('Choose a password to activate your administrator account.') : t('Choose a new password for your admin account.')}</p></div>
       {checkingLink ? <div className="auth-link-check" role="status"><i className="fas fa-spinner fa-spin" /> {t('Checking your secure link…')}</div>
         : completed || requestSent ? <div className="auth-complete"><span><i className="fas fa-circle-check" /></span><AuthFeedback>{feedback}</AuthFeedback>{requestSent && <p className="auth-delivery-hint">{isSetupRequest ? t('Check your inbox and spam folder. If no setup email arrives, contact the person who invited you.') : t('Check your inbox and spam folder. If no reset email arrives, contact the platform owner.')}</p>}<a className="auth-submit auth-submit-link" href="admin-login.html">{t('Continue to sign in')}<i className="fas fa-arrow-right" /></a>{requestSent && <button type="button" className="auth-secondary-link" onClick={() => { setRequestSent(false); setEmail(''); setFeedback(''); }}>{t('Use a different email')}</button>}</div>
-          : token && !canSetPassword ? <div className="auth-link-expired"><AuthFeedback error={isError}>{feedback || t('This link has expired or already been used.')}</AuthFeedback><p>{t('Request a fresh setup or reset link with your admin email.')}</p><a className="auth-submit auth-submit-link" href={purpose === 'setup' ? 'admin-setup-account.html' : 'admin-reset-password.html'}>{t('Request a new link')}<i className="fas fa-arrow-right" /></a></div>
+      : token && !canSetPassword ? <div className="auth-link-expired"><AuthFeedback error={isError}>{feedback || t('This link has expired or already been used.')}</AuthFeedback><p>{t('Request a fresh setup or reset link with your admin email.')}</p><a className="auth-submit auth-submit-link" href={purpose === 'setup' ? 'admin-setup-account.html' : 'admin-reset-password.html'}>{t('Request a new link')}<i className="fas fa-arrow-right" /></a></div>
           : <form className="auth-form" onSubmit={submit}>
             {showRequestForm ? <><label htmlFor="reset-email">{t('Admin email')}</label><div className="auth-input-wrap"><i className="far fa-envelope" aria-hidden="true" /><input id="reset-email" name="email" type="email" autoComplete="email" maxLength={254} required value={email} onChange={event => setEmail(event.target.value)} /></div></> : <>
+              {isSetup && <><label htmlFor="setup-admin-name">{t('Full name')}</label><div className="auth-input-wrap"><i className="far fa-user" aria-hidden="true" /><input id="setup-admin-name" name="displayName" autoComplete="name" minLength={2} maxLength={120} required value={displayName} onChange={event => setDisplayName(event.target.value)} /></div>
+              <label htmlFor="setup-admin-email">{t('Admin email')}</label><div className="auth-input-wrap"><i className="far fa-envelope" aria-hidden="true" /><input id="setup-admin-email" type="email" autoComplete="email" value={email} readOnly /></div>
+              <label htmlFor="setup-admin-phone">{t('Phone number (optional)')}</label><div className="auth-input-wrap"><i className="fas fa-phone" aria-hidden="true" /><input id="setup-admin-phone" name="phone" type="tel" autoComplete="tel" maxLength={40} value={phone} onChange={event => setPhone(event.target.value)} /></div></>}
               <label htmlFor="new-admin-password">{t('New password')}</label><div className="auth-input-wrap"><i className="fas fa-key" aria-hidden="true" /><input id="new-admin-password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" minLength={8} maxLength={1024} required value={password} onChange={event => setPassword(event.target.value)} /><button type="button" className="auth-password-visibility" aria-label={showPassword ? t('Hide password') : t('Show password')} onClick={() => setShowPassword(value => !value)}><i className={`far ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`} /></button></div><small className="auth-password-hint">{t('Use at least 8 characters. A longer, unique password is safer.')}</small>
               <label htmlFor="confirm-admin-password">{t('Confirm new password')}</label><div className="auth-input-wrap"><i className="fas fa-key" aria-hidden="true" /><input id="confirm-admin-password" type={showConfirmation ? 'text' : 'password'} autoComplete="new-password" minLength={8} maxLength={1024} required value={confirmation} onChange={event => setConfirmation(event.target.value)} /><button type="button" className="auth-password-visibility" aria-label={showConfirmation ? t('Hide password') : t('Show password')} onClick={() => setShowConfirmation(value => !value)}><i className={`far ${showConfirmation ? 'fa-eye-slash' : 'fa-eye'}`} /></button></div>
             </>}

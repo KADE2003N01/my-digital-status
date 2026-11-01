@@ -4,6 +4,7 @@ import TimedNotification from '../../components/TimedNotification.jsx';
 import { platformOwnerRequest } from './platformOwnerApi.js';
 import OwnerMessages from './OwnerMessages.jsx';
 import LogoutIcon from '../../components/LogoutIcon.jsx';
+import ExpandableCell from '../../components/ExpandableCell.jsx';
 import './PlatformOwnerPage.css';
 
 const roles = [
@@ -14,6 +15,15 @@ const roles = [
   ['download_manager', 'Download manager'],
   ['profile_manager', 'Profile manager']
 ];
+const supportCategoryLabels = {
+  admin_invitation: 'New admin account',
+  setup_link: 'Invitation / setup link',
+  sign_in: 'Sign-in problem',
+  inactive_account: 'Inactive account',
+  password_reset: 'Password reset',
+  other: 'Other account issue'
+};
+const standardAdminRoles = roles.filter(([role]) => role !== 'platform_owner');
 function updateRoleSelection(current, value, checked) {
   if (value === 'platform_owner') return checked ? roles.map(([role]) => role) : current.filter((role) => role !== 'platform_owner');
   if (current.includes('platform_owner')) return current;
@@ -34,7 +44,7 @@ function positionRoleViewDropdown(event) {
   dropdown.style.setProperty('--owner-role-menu-left', `${left}px`);
 }
 const bulkActionInfo = {
-  delete_all: { title: 'Delete all customer admins', phrase: 'DELETE ALL', detail: 'This permanently removes every customer admin account, including active, inactive, and pending accounts. Super-admin accounts are protected.' },
+  delete_all: { title: 'Move all customer admins to deleted accounts', phrase: 'DELETE ALL', detail: 'This disables and moves every customer admin account to the recoverable deleted list. You can restore accounts later. Super-admin accounts are protected.' },
   activate_all: { title: 'Activate all customer admins', phrase: 'ACTIVATE ALL', detail: 'This activates inactive customer admin accounts. Pending invitations and super-admin accounts are unchanged.' },
   deactivate_all: { title: 'Deactivate all customer admins', phrase: 'DEACTIVATE ALL', detail: 'This deactivates active customer admin accounts and ends their current sessions. Pending invitations and super-admin accounts are unchanged.' },
   reset_passwords: { title: 'Send password links to all customer admins', phrase: 'RESET PASSWORDS', detail: 'Active admins receive password-reset links and pending admins receive setup links. Inactive accounts and super-admin accounts are skipped.' },
@@ -51,6 +61,10 @@ function formatActivityTime(value) {
   return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
 }
 
+function RequestDetails({ message }) {
+  return <ExpandableCell className="owner-request-detail" buttonClassName="owner-request-detail-toggle">{message}</ExpandableCell>;
+}
+
 function sessionToken() {
   try { return window.sessionStorage.getItem('kade-admin-session-token') || ''; } catch { return ''; }
 }
@@ -62,11 +76,23 @@ export default function PlatformOwnerPage() {
   const [messagesView, setMessagesView] = useState(() => window.location.hash === '#messages');
   const [owner, setOwner] = useState(null);
   const [admins, setAdmins] = useState([]);
+  const [deletedAdmins, setDeletedAdmins] = useState([]);
+  const [deletedAdminsOpen, setDeletedAdminsOpen] = useState(false);
+  const [selectedDeletedAdminIds, setSelectedDeletedAdminIds] = useState([]);
   const [auditEvents, setAuditEvents] = useState([]);
   const [newAuditCount, setNewAuditCount] = useState(0);
   const [supportRequests, setSupportRequests] = useState([]);
-  const [inboxCounts, setInboxCounts] = useState({ requests: 0, messages: 0, messagesIncoming: 0, messagesOutgoing: 0 });
+  const [requestStatusView, setRequestStatusView] = useState('open');
+  const [requestSearch, setRequestSearch] = useState('');
+  const [selectedRequestIds, setSelectedRequestIds] = useState([]);
+  const [bulkRequestBusy, setBulkRequestBusy] = useState(false);
+  const [responseDialogOpen, setResponseDialogOpen] = useState(false);
+  const [responseDraft, setResponseDraft] = useState('');
+  const [responseBusy, setResponseBusy] = useState(false);
+  const [inboxCounts, setInboxCounts] = useState({ requests: 0, resolvedRequests: 0, deletedRequests: 0, messages: 0, messagesIncoming: 0, messagesOutgoing: 0 });
   const [updatingRequestId, setUpdatingRequestId] = useState(null);
+  const [invitationRequest, setInvitationRequest] = useState(null);
+  const [invitationRoles, setInvitationRoles] = useState(['portfolio_owner']);
   const [counts, setCounts] = useState({ total: 0, active: 0, pending: 0, inactive: 0 });
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -76,6 +102,11 @@ export default function PlatformOwnerPage() {
   const [activitySearch, setActivitySearch] = useState('');
   const [deletingAuditId, setDeletingAuditId] = useState(null);
   const [deletingAllAudit, setDeletingAllAudit] = useState(false);
+  const [deletedAuditCount, setDeletedAuditCount] = useState(0);
+  const [restoreAuditOpen, setRestoreAuditOpen] = useState(false);
+  const [restoreAuditFrom, setRestoreAuditFrom] = useState('');
+  const [restoreAuditTo, setRestoreAuditTo] = useState('');
+  const [restoringAudit, setRestoringAudit] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [form, setForm] = useState({ displayName: '', email: '', phone: '', roles: ['portfolio_owner'] });
   const [busy, setBusy] = useState(false);
@@ -187,10 +218,17 @@ export default function PlatformOwnerPage() {
     setPage(result.page || nextPage);
   }, [page, search, statusFilter]);
 
+  const loadDeletedAdmins = useCallback(async () => {
+    const result = await platformOwnerRequest('/admins/deleted');
+    setDeletedAdmins(result.admins || []);
+    setSelectedDeletedAdminIds(current => current.filter(id => (result.admins || []).some(admin => admin.id === id)));
+  }, []);
+
   const loadAudit = useCallback(async () => {
     const result = await platformOwnerRequest('/audit');
     const events = result.events || [];
     setAuditEvents(events);
+    setDeletedAuditCount(result.deletedCount || 0);
     try {
       const key = 'kade-owner-audit-last-seen';
       let lastSeen = Number(window.localStorage.getItem(key));
@@ -206,17 +244,24 @@ export default function PlatformOwnerPage() {
   }, []);
 
   const loadOwnerInbox = useCallback(async () => {
-    const [countResult, requestResult] = await Promise.all([
+    const [countResult, requestResult, deletedRequestResult] = await Promise.all([
       platformOwnerRequest('/inbox-counts'),
-      platformOwnerRequest('/support-requests')
+      platformOwnerRequest('/support-requests?status=all'),
+      platformOwnerRequest('/support-requests?status=deleted')
     ]);
-    setInboxCounts({ requests: countResult.requests || 0, messages: countResult.messages || 0, messagesIncoming: countResult.messagesIncoming || 0, messagesOutgoing: countResult.messagesOutgoing || 0 });
-    setSupportRequests(requestResult.requests || []);
+    setInboxCounts({ requests: countResult.requests || 0, resolvedRequests: countResult.resolvedRequests || 0, deletedRequests: countResult.deletedRequests || 0, messages: countResult.messages || 0, messagesIncoming: countResult.messagesIncoming || 0, messagesOutgoing: countResult.messagesOutgoing || 0 });
+    setSupportRequests([...(requestResult.requests || []), ...(deletedRequestResult.requests || [])]);
   }, []);
 
   const refreshInbox = useCallback(() => {
     loadOwnerInbox().catch((requestError) => setError(requestError.message));
   }, [loadOwnerInbox]);
+
+  const visibleSupportRequests = supportRequests
+    .filter(request => requestStatusView === 'deleted' ? Boolean(request.deletedAt) : !request.deletedAt && request.status === requestStatusView)
+    .filter(request => `${request.name} ${request.email} ${request.category} ${request.message}`.toLowerCase().includes(requestSearch.trim().toLowerCase()));
+  const selectedVisibleSupportRequests = visibleSupportRequests.filter(request => selectedRequestIds.includes(request.id));
+  const resolvedSupportRequestCount = inboxCounts.resolvedRequests || 0;
 
   const visibleAuditEvents = auditEvents.filter((event) =>
     `${event.action || ''} ${event.actorEmail || ''} ${event.targetEmail || ''} ${JSON.stringify(event.details || {})} ${event.createdAt || ''}`
@@ -224,22 +269,22 @@ export default function PlatformOwnerPage() {
   );
 
   async function deleteAuditEvent(event) {
-    if (!window.confirm(`Delete this ${event.action.replaceAll('_', ' ')} activity record?`)) return;
+    if (!window.confirm(`Move this ${event.action.replaceAll('_', ' ')} activity record to deleted history? You can restore it later by date range.`)) return;
     setDeletingAuditId(event.id); setError(''); setNotice('');
     try {
       const result = await platformOwnerRequest(`/audit/${event.id}`, { method: 'DELETE' });
-      setAuditEvents(current => current.filter(item => item.id !== event.id));
+      await loadAudit();
       setNotice(result.message || 'Activity record deleted.');
     } catch (requestError) { setError(requestError.message || 'Could not delete activity record.'); }
     finally { setDeletingAuditId(null); }
   }
 
   async function deleteAllAudit() {
-    if (!auditEvents.length || !window.confirm('Delete all recent access activity records? This cannot be undone.')) return;
+    if (!auditEvents.length || !window.confirm('Move all recent access activity to deleted history? You can restore records later by date range.')) return;
     setDeletingAllAudit(true); setError(''); setNotice('');
     try {
       const result = await platformOwnerRequest('/audit', { method: 'DELETE' });
-      setAuditEvents([]);
+      await loadAudit();
       setNotice(result.message || 'All activity records deleted.');
     } catch (requestError) { setError(requestError.message || 'Could not delete activity records.'); }
     finally { setDeletingAllAudit(false); }
@@ -250,8 +295,91 @@ export default function PlatformOwnerPage() {
     try {
       const result = await platformOwnerRequest(`/support-requests/${request.id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
       setNotice(result.message || 'Support request updated.');
-      await loadOwnerInbox();
+      setSelectedRequestIds(current => current.filter(id => id !== request.id));
+      await Promise.all([loadOwnerInbox(), loadAudit()]);
     } catch (requestError) { setError(requestError.message || 'Could not update support request.'); }
+    finally { setUpdatingRequestId(null); }
+  }
+
+  async function deleteSupportRequest(request) {
+    if (!window.confirm(`Move the ${request.status} request from ${request.name} to deleted requests? You can restore it later.`)) return;
+    setUpdatingRequestId(request.id); setError(''); setNotice('');
+    try {
+      const result = await platformOwnerRequest(`/support-requests/${request.id}`, { method: 'DELETE' });
+      setNotice(result.message || 'Request moved to deleted requests.');
+      setSelectedRequestIds(current => current.filter(id => id !== request.id));
+      await Promise.all([loadOwnerInbox(), loadAudit()]);
+    } catch (requestError) { setError(requestError.message || 'Could not delete the support request.'); }
+    finally { setUpdatingRequestId(null); }
+  }
+
+  async function restoreSupportRequest(request) {
+    setUpdatingRequestId(request.id); setError(''); setNotice('');
+    try {
+      const result = await platformOwnerRequest('/support-requests/bulk-action', { method: 'POST', body: JSON.stringify({ action: 'restore', ids: [request.id] }) });
+      setNotice(result.message || 'Support request restored.');
+      await Promise.all([loadOwnerInbox(), loadAudit()]);
+    } catch (requestError) { setError(requestError.message || 'Could not restore the support request.'); }
+    finally { setUpdatingRequestId(null); }
+  }
+
+  async function runSupportRequestBulkAction(action) {
+    const ids = visibleSupportRequests.filter(request => selectedRequestIds.includes(request.id)).map(request => request.id);
+    if (!ids.length) return;
+    if (action === 'delete' && !window.confirm(`Move ${ids.length} selected request${ids.length === 1 ? '' : 's'} to deleted requests? You can restore them later.`)) return;
+    setBulkRequestBusy(true); setError(''); setNotice('');
+    try {
+      const result = await platformOwnerRequest('/support-requests/bulk-action', { method: 'POST', body: JSON.stringify({ action, ids }) });
+      setNotice(result.message || (action === 'restore' ? 'Selected requests restored.' : 'Selected requests updated.'));
+      setSelectedRequestIds([]);
+      await Promise.all([loadOwnerInbox(), loadAudit()]);
+    } catch (requestError) { setError(requestError.message || 'Could not update the selected requests.'); }
+    finally { setBulkRequestBusy(false); }
+  }
+
+  async function sendBulkSupportResponse(event) {
+    event.preventDefault();
+    const ids = selectedVisibleSupportRequests.filter(request => request.status === 'open').map(request => request.id);
+    if (!ids.length || ids.length > 50 || responseDraft.trim().length < 3) return;
+    setResponseBusy(true); setError(''); setNotice('');
+    try {
+      const result = await platformOwnerRequest('/support-requests/respond', { method: 'POST', body: JSON.stringify({ ids, message: responseDraft.trim() }) });
+      if (!result.sent) throw new Error(result.message || 'No responses were delivered. Check the contact email settings and retry.');
+      const failedRecipients = (result.failures || []).map(item => item.email).join(', ');
+      setNotice(`${result.message || `${result.sent} response(s) sent.`}${failedRecipients ? ` Failed recipients: ${failedRecipients}.` : ''}`);
+      setResponseDialogOpen(false); setResponseDraft(''); setSelectedRequestIds([]);
+      await Promise.all([loadOwnerInbox(), loadAudit()]);
+    } catch (requestError) { setError(requestError.message || 'Could not send responses.'); }
+    finally { setResponseBusy(false); }
+  }
+
+  async function restoreAuditRange(event) {
+    event.preventDefault();
+    if (!restoreAuditFrom || !restoreAuditTo || restoreAuditFrom > restoreAuditTo) return;
+    setRestoringAudit(true); setError(''); setNotice('');
+    try {
+      const result = await platformOwnerRequest('/audit/restore', { method: 'POST', body: JSON.stringify({ from: restoreAuditFrom, to: restoreAuditTo, timezoneOffset: new Date().getTimezoneOffset() }) });
+      setNotice(result.message || `${result.restored} activity records restored.`);
+      setRestoreAuditOpen(false);
+      await loadAudit();
+    } catch (requestError) { setError(requestError.message || 'Could not restore deleted activity.'); }
+    finally { setRestoringAudit(false); }
+  }
+
+  function openInvitationRolePicker(request) {
+    const savedRoles = (request.adminRoles || []).filter((role) => role !== 'platform_owner' && standardAdminRoles.some(([value]) => value === role));
+    setInvitationRoles(savedRoles.length ? savedRoles : ['portfolio_owner']);
+    setInvitationRequest(request);
+  }
+
+  async function inviteFromRequest(request, selectedRoles = null) {
+    setUpdatingRequestId(request.id); setError(''); setNotice('');
+    try {
+      const result = await platformOwnerRequest(`/support-requests/${request.id}/invite`, { method: 'POST', body: JSON.stringify(selectedRoles ? { roles: selectedRoles } : {}) });
+      setNotice(result.message || `Setup link sent to ${request.email}.`);
+      setInvitationRequest(null);
+      await Promise.all([loadOwnerInbox(), loadAdmins(1, search, statusFilter), loadAudit()]);
+    } catch (requestError) { setError(requestError.message || 'Could not send the setup invitation.'); }
     finally { setUpdatingRequestId(null); }
   }
 
@@ -394,12 +522,24 @@ export default function PlatformOwnerPage() {
     }
   }
 
+  async function restoreDeletedAdmins(ids = selectedDeletedAdminIds) {
+    if (!ids.length) return;
+    setBulkBusy(true); setError(''); setNotice('');
+    try {
+      const result = await platformOwnerRequest('/admins/restore', { method: 'POST', body: JSON.stringify({ ids }) });
+      setNotice(result.message || 'Administrator accounts restored.');
+      setSelectedDeletedAdminIds([]);
+      await Promise.all([loadAdmins(1, search, statusFilter), loadDeletedAdmins(), loadAudit()]);
+    } catch (requestError) { setError(requestError.message || 'Could not restore administrator accounts.'); }
+    finally { setBulkBusy(false); }
+  }
+
   async function signOut() {
     try {
       await apiFetch('/auth/logout', { method: 'POST', credentials: 'include', headers: sessionToken() ? { Authorization: `Bearer ${sessionToken()}` } : undefined });
     } finally {
-      try { window.sessionStorage.removeItem('kade-admin-session-token'); } catch { /* Continue to sign-in. */ }
-      window.location.replace('admin-login.html');
+      try { window.sessionStorage.removeItem('kade-admin-session-token'); } catch { /* Continue to the public homepage. */ }
+      window.location.replace('/index.html');
     }
   }
 
@@ -490,7 +630,7 @@ export default function PlatformOwnerPage() {
       <label>Full name<input required maxLength="120" value={form.displayName} onChange={e => setForm({ ...form, displayName: e.target.value })} /></label>
       <label>Email address<input required type="email" maxLength="254" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></label>
       <label>Phone <span>(optional)</span><input maxLength="40" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></label>
-      <fieldset className="owner-role-checks"><legend>Access roles</legend>{roles.map(([value, label]) => <label key={value}><input type="checkbox" checked={form.roles.includes(value)} disabled={value !== 'platform_owner' && form.roles.includes('platform_owner')} onChange={event => setForm(current => ({ ...current, roles: updateRoleSelection(current.roles, value, event.target.checked) }))} /> <span>{label}</span></label>)}<small>Super admin automatically receives every site role and permission.</small></fieldset>
+      <div className="owner-invite-role-field"><span>Access roles</span><details className="owner-role-dropdown owner-invite-role-dropdown"><summary>{form.roles.length ? `${form.roles.length} role${form.roles.length === 1 ? '' : 's'} selected` : 'Choose roles'} <i className="fas fa-chevron-down" aria-hidden="true" /></summary><div className="owner-role-dropdown-panel"><fieldset className="owner-role-checks owner-invite-role-checks" aria-label="Select standard admin roles">{standardAdminRoles.map(([value, label]) => <label key={value}><input type="checkbox" checked={form.roles.includes(value)} onChange={event => setForm(current => ({ ...current, roles: updateRoleSelection(current.roles, value, event.target.checked) }))} /> <span>{label}</span></label>)}</fieldset></div></details></div>
       <p className="owner-form-hint">The invitation is sent by email. The admin sets their own password from the one-time link.</p><button className="owner-button owner-button-primary" disabled={busy}>{busy ? 'Sending…' : 'Send invitation'}</button>
     </form></details>}</div></div></section>
 
@@ -500,13 +640,33 @@ export default function PlatformOwnerPage() {
     {!directoryView && !requestsView && !messagesView && <section className="owner-stat-grid" aria-label="Admin account totals">
       <article className="owner-stat"><span className="owner-stat-icon blue"><i className="fas fa-users" /></span><div><small>All admins</small><strong>{counts.total}</strong></div></article>
       <article className="owner-stat"><span className="owner-stat-icon green"><i className="fas fa-circle-check" /></span><div><small>Active</small><strong>{counts.active}</strong></div></article>
-      <article className="owner-stat"><span className="owner-stat-icon amber"><i className="fas fa-envelope-open-text" /></span><div><small>Invited</small><strong>{counts.pending}</strong></div></article>
+      <article className="owner-stat"><span className="owner-stat-icon amber"><i className="fas fa-hourglass-half" /></span><div><small>Pending invitations</small><strong>{counts.pending}</strong></div></article>
       <article className="owner-stat"><span className="owner-stat-icon gray"><i className="fas fa-user-slash" /></span><div><small>Inactive</small><strong>{counts.inactive}</strong></div></article>
     </section>}
 
-    {!directoryView && !requestsView && !messagesView && <section className="owner-card owner-guide"><div><p className="owner-eyebrow">HOW IT WORKS</p><h2>Manage rented administrator access</h2><p>Invite an administrator after confirming payment. They receive a one-time setup link to create their password. You can then assign a role, activate or deactivate access, and send setup or password-reset links when needed.</p><a className="owner-button owner-button-primary" href="#admin-directory"><i className="fas fa-users-gear" /> Open Admin accounts</a></div><div className="owner-guide-steps"><article><span>01</span><div><strong>Invite</strong><small>Add the administrator’s name, email, and access role.</small></div></article><article><span>02</span><div><strong>Manage access</strong><small>Change roles or switch account access on and off.</small></div></article><article><span>03</span><div><strong>Review activity</strong><small>See recent security actions and send password links.</small></div></article></div></section>}
+    {!directoryView && !requestsView && !messagesView && <section className="owner-card owner-guide"><div><p className="owner-eyebrow">HOW IT WORKS</p><h2>Manage rented administrator access</h2><p>Review a new administrator’s ticket and requested roles, then send their one-time setup link. The requester chooses the access they need; you can later manage that access or send account-recovery links.</p><a className="owner-button owner-button-primary" href="#admin-directory"><i className="fas fa-users-gear" /> Open Admin accounts</a></div><div className="owner-guide-steps"><article><span>01</span><div><strong>Review request</strong><small>Check the requester’s details and selected roles.</small></div></article><article><span>02</span><div><strong>Send setup link</strong><small>The new administrator creates their password.</small></div></article><article><span>03</span><div><strong>Manage access</strong><small>Review account status and security activity.</small></div></article></div></section>}
 
-    {requestsView && <section className="owner-card owner-requests" id="support-requests"><header className="owner-requests-heading"><div><p className="owner-eyebrow">ADMIN HELP INBOX</p><h2>Open support requests</h2><p>Requests from administrators who need help signing in or recovering account access.</p></div><span className="owner-audit-count">{inboxCounts.requests} open</span></header>{supportRequests.length ? <div className="owner-request-table-scroll"><table className="owner-request-table"><thead><tr><th>Administrator</th><th>Request</th><th>Message</th><th>Date / time</th><th>Action</th></tr></thead><tbody>{supportRequests.map(request => <tr key={request.id}><td><strong>{request.name}</strong><a href={`mailto:${request.email}`}>{request.email}</a></td><td>{request.category.replaceAll('_', ' ')}</td><td className="owner-request-message">{request.message}</td><td><time>{formatActivityTime(request.createdAt)}</time></td><td><button className="owner-action-button" type="button" disabled={updatingRequestId === request.id} onClick={() => updateSupportRequest(request, 'resolved')}>{updatingRequestId === request.id ? 'Saving…' : 'Mark resolved'}</button></td></tr>)}</tbody></table></div> : <p className="owner-audit-empty">There are no open requests right now.</p>}</section>}
+    {requestsView && <section className="owner-card owner-requests" id="support-requests">
+      <header className="owner-requests-heading"><div><p className="owner-eyebrow">ADMIN SUPPORT INBOX</p><h2>{requestStatusView === 'open' ? 'Open requests' : 'Resolved request history'}</h2><p>Sending or resending a link leaves the request open. Invitation and setup requests resolve only after setup is complete and the account is active. Password-reset and sign-in requests resolve after the related action succeeds.</p></div><span className="owner-audit-count">{inboxCounts.requests} open</span></header>
+      <div className="owner-request-toolbar">
+        <div className="owner-request-tabs" role="tablist" aria-label="Support request status">
+          <button type="button" role="tab" aria-selected={requestStatusView === 'open'} className={requestStatusView === 'open' ? 'is-current' : ''} onClick={() => { setRequestStatusView('open'); setSelectedRequestIds([]); }}>Open <span>{inboxCounts.requests}</span></button>
+          <button type="button" role="tab" aria-selected={requestStatusView === 'resolved'} className={requestStatusView === 'resolved' ? 'is-current' : ''} onClick={() => { setRequestStatusView('resolved'); setSelectedRequestIds([]); }}>Resolved <span>{resolvedSupportRequestCount}</span></button>
+          <button type="button" role="tab" aria-selected={requestStatusView === 'deleted'} className={requestStatusView === 'deleted' ? 'is-current' : ''} onClick={() => { setRequestStatusView('deleted'); setSelectedRequestIds([]); }}>Deleted <span>{inboxCounts.deletedRequests || 0}</span></button>
+        </div>
+        <label className="owner-request-search"><i className="fas fa-magnifying-glass" aria-hidden="true" /><input type="search" placeholder="Search requester, email, or request" value={requestSearch} onChange={event => setRequestSearch(event.target.value)} /></label>
+        <div className="owner-request-bulk"><span>{selectedVisibleSupportRequests.length} selected</span>{requestStatusView === 'open' && <><button type="button" disabled={bulkRequestBusy || responseBusy || !selectedVisibleSupportRequests.length || selectedVisibleSupportRequests.length > 50} title={selectedVisibleSupportRequests.length > 50 ? 'Select up to 50 tickets per response.' : 'Send a response to every selected open ticket.'} onClick={() => { setResponseDraft(''); setResponseDialogOpen(true); }}>Send response{selectedVisibleSupportRequests.length ? ` (${selectedVisibleSupportRequests.length})` : ''}</button><button type="button" disabled={bulkRequestBusy || !selectedVisibleSupportRequests.length || selectedVisibleSupportRequests.some(request => request.category === 'admin_invitation' || (request.category === 'setup_link' && request.adminStatus !== 'active'))} title="Invitation and setup requests stay open until the account is active." onClick={() => runSupportRequestBulkAction('resolve')}>{bulkRequestBusy ? 'Working...' : 'Resolve selected'}</button></>}{requestStatusView === 'deleted' ? <button type="button" disabled={bulkRequestBusy || !selectedVisibleSupportRequests.length} onClick={() => runSupportRequestBulkAction('restore')}>{bulkRequestBusy ? 'Working...' : 'Restore selected'}</button> : <button type="button" className="is-danger" disabled={bulkRequestBusy || !selectedVisibleSupportRequests.length} onClick={() => runSupportRequestBulkAction('delete')}>{bulkRequestBusy ? 'Working...' : 'Delete selected'}</button>}</div>
+      </div>
+      {visibleSupportRequests.length ? <div className="owner-request-table-scroll"><table className="owner-request-table"><thead><tr><th className="owner-request-select"><input type="checkbox" aria-label="Select all visible requests" checked={visibleSupportRequests.length > 0 && visibleSupportRequests.every(request => selectedRequestIds.includes(request.id))} onChange={event => setSelectedRequestIds(current => event.target.checked ? [...new Set([...current, ...visibleSupportRequests.map(request => request.id)])] : current.filter(id => !visibleSupportRequests.some(request => request.id === id)))} /></th><th>Requester</th><th>Request</th><th>Status</th><th>Details</th><th>Submitted</th><th>{requestStatusView === 'resolved' ? 'Resolved' : requestStatusView === 'deleted' ? 'Deleted' : 'Action'}</th></tr></thead><tbody>{visibleSupportRequests.map(request => <tr key={request.id}>
+        <td className="owner-request-select"><input type="checkbox" aria-label={`Select request from ${request.name}`} checked={selectedRequestIds.includes(request.id)} onChange={event => setSelectedRequestIds(current => event.target.checked ? [...new Set([...current, request.id])] : current.filter(id => id !== request.id))} /></td>
+        <td className="owner-request-person"><strong>{request.name}</strong><a href={`mailto:${request.email}`}>{request.email}</a></td>
+        <td className="owner-request-request"><ExpandableCell className="owner-request-request-content"><span className="owner-request-category">{supportCategoryLabels[request.category] || request.category.replaceAll('_', ' ')}</span>{request.category === 'admin_invitation' && request.requestedRoles?.length > 0 && <span className="owner-request-role-list">Requested roles: {request.requestedRoles.map(role => standardAdminRoles.find(([value]) => value === role)?.[1] || role).join(', ')}</span>}{request.responseCount > 0 && <span className="owner-request-role-list">{request.responseCount} response{request.responseCount === 1 ? '' : 's'} sent</span>}</ExpandableCell></td>
+        <td><span className={`owner-request-status ${requestStatusView === 'deleted' ? 'deleted' : request.status}`}>{requestStatusView === 'deleted' ? 'Deleted' : request.status === 'open' ? 'Open' : 'Resolved'}</span></td>
+        <td className="owner-request-message"><RequestDetails message={request.message} /></td>
+        <td><time>{formatActivityTime(request.createdAt)}</time></td>
+        <td><div className="owner-request-actions">{requestStatusView === 'deleted' ? <button className="owner-action-button" type="button" disabled={updatingRequestId === request.id} onClick={() => restoreSupportRequest(request)}>Restore</button> : request.status === 'open' ? <>{request.category === 'admin_invitation' && request.adminStatus !== 'active' && <button className="owner-action-button owner-invite-request" type="button" disabled={updatingRequestId === request.id} onClick={() => inviteFromRequest(request)}>{updatingRequestId === request.id ? 'Sending...' : request.adminStatus === 'pending' ? 'Resend setup link' : request.adminStatus === 'inactive' ? 'Restore account & send reset link' : 'Approve & send setup link'}</button>}{request.category === 'setup_link' && request.adminStatus === 'inactive' && <button className="owner-action-button owner-invite-request" type="button" disabled={updatingRequestId === request.id} onClick={() => inviteFromRequest(request)}>Restore account &amp; send reset link</button>}{request.category === 'setup_link' && request.adminStatus === 'pending' && <button className="owner-action-button owner-invite-request" type="button" disabled={updatingRequestId === request.id} onClick={() => inviteFromRequest(request)}>{updatingRequestId === request.id ? 'Sending…' : 'Resend setup link'}</button>}{request.category === 'setup_link' && !request.adminStatus && <button className="owner-action-button owner-invite-request" type="button" disabled={updatingRequestId === request.id} onClick={() => openInvitationRolePicker(request)}>Create account &amp; send setup link</button>}{(request.category !== 'admin_invitation' && request.category !== 'setup_link' || request.adminStatus === 'active') && <button className="owner-action-button" type="button" disabled={updatingRequestId === request.id} onClick={() => updateSupportRequest(request, 'resolved')}>{updatingRequestId === request.id ? 'Saving…' : 'Mark resolved'}</button>}<button className="owner-action-button delete" type="button" disabled={updatingRequestId === request.id} onClick={() => deleteSupportRequest(request)}>Delete</button></> : <><time>{formatActivityTime(request.resolvedAt)}</time><button className="owner-action-button" type="button" disabled={updatingRequestId === request.id} onClick={() => updateSupportRequest(request, 'open')}>Reopen</button><button className="owner-action-button delete" type="button" disabled={updatingRequestId === request.id} onClick={() => deleteSupportRequest(request)}>Delete</button></>}</div></td>
+      </tr>)}</tbody></table></div> : <div className="owner-request-empty"><i className={`fas ${requestStatusView === 'open' ? 'fa-circle-check' : 'fa-box-archive'}`} aria-hidden="true" /><strong>{requestStatusView === 'open' ? 'No open support requests' : requestStatusView === 'deleted' ? 'No deleted requests' : 'No resolved requests yet'}</strong><span>{requestStatusView === 'open' ? 'New requests will appear here. Resolved items remain available in the Resolved tab.' : requestStatusView === 'deleted' ? 'Requests you delete stay here until you restore them.' : 'Requests appear here after their issue is completed or marked resolved.'}</span></div>}
+    </section>}
 
     {messagesView && <div id="owner-messages" className="owner-messages-view"><OwnerMessages onMessagesChanged={refreshInbox} ownerId={owner?.id} /></div>}
 
@@ -514,7 +674,7 @@ export default function PlatformOwnerPage() {
     <section className="owner-stat-grid owner-directory-stats" aria-label="Admin account totals">
       <article className="owner-stat"><span className="owner-stat-icon blue"><i className="fas fa-users" /></span><div><small>All admins</small><strong>{counts.total}</strong></div></article>
       <article className="owner-stat"><span className="owner-stat-icon green"><i className="fas fa-circle-check" /></span><div><small>Active</small><strong>{counts.active}</strong></div></article>
-      <article className="owner-stat"><span className="owner-stat-icon amber"><i className="fas fa-envelope-open-text" /></span><div><small>Invited</small><strong>{counts.pending}</strong></div></article>
+      <article className="owner-stat"><span className="owner-stat-icon amber"><i className="fas fa-hourglass-half" /></span><div><small>Pending invitations</small><strong>{counts.pending}</strong></div></article>
       <article className="owner-stat"><span className="owner-stat-icon gray"><i className="fas fa-user-slash" /></span><div><small>Inactive</small><strong>{counts.inactive}</strong></div></article>
     </section>
 
@@ -526,6 +686,7 @@ export default function PlatformOwnerPage() {
         <button type="button" className="bulk-reset" disabled={busy || bulkBusy || !counts.total} onClick={() => { setBulkPhrase(''); setBulkAction('reset_passwords'); }}><i className="fas fa-key" /> Reset passwords all</button>
         <button type="button" className="bulk-assign-roles" disabled={busy || bulkBusy || !counts.total} onClick={() => { setBulkPhrase(''); setBulkRoles(['portfolio_owner']); setBulkAction('assign_roles_all'); }}><i className="fas fa-user-tag" /> Assign roles all</button>
         <button type="button" className="bulk-delete" disabled={busy || bulkBusy || !counts.total} onClick={() => { setBulkPhrase(''); setBulkAction('delete_all'); }}><i className="fas fa-trash-can" /> Delete all</button>
+        <button type="button" className="owner-restore-deleted-button" disabled={busy || bulkBusy || !counts.deleted} onClick={async () => { setDeletedAdminsOpen(value => !value); if (!deletedAdminsOpen) { try { await loadDeletedAdmins(); } catch (requestError) { setError(requestError.message || 'Could not load deleted administrator accounts.'); } } }}><i className="fas fa-rotate-left" /> Restore deleted ({counts.deleted || 0})</button>
       </div>
       {bulkAction && <div className="owner-confirm-backdrop" role="presentation"><form className="owner-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="owner-bulk-title" onSubmit={event => { event.preventDefault(); runBulkAction(); }}>
         <span className={`owner-confirm-icon ${bulkAction === 'delete_all' ? 'danger' : ''}`}><i className={`fas ${bulkAction === 'delete_all' ? 'fa-triangle-exclamation' : bulkAction === 'reset_passwords' ? 'fa-key' : 'fa-users-gear'}`} aria-hidden="true" /></span>
@@ -536,24 +697,26 @@ export default function PlatformOwnerPage() {
         <input id="owner-bulk-confirm" autoFocus autoComplete="off" value={bulkPhrase} onChange={event => setBulkPhrase(event.target.value)} /></>}
         <div className="owner-confirm-actions"><button type="button" className="owner-confirm-cancel" disabled={bulkBusy} onClick={() => { setBulkAction(''); setBulkPhrase(''); }}>Cancel</button><button type="submit" className={bulkAction === 'delete_all' ? 'owner-confirm-delete' : 'owner-confirm-submit'} disabled={bulkBusy || (bulkAction !== 'assign_roles_all' && bulkPhrase !== bulkActionInfo[bulkAction].phrase) || (bulkAction === 'assign_roles_all' && !bulkRoles.length)}>{bulkBusy ? 'Working…' : 'Confirm'}</button></div>
       </form></div>}
-      <div className="owner-filters"><label className="owner-search"><i className="fas fa-magnifying-glass" /><input type="search" placeholder="Search by name or email" value={searchInput} onChange={event => setSearchInput(event.target.value)} /></label><label className="owner-status-filter"><span>Status</span><select value={statusFilter} onChange={event => { setStatusFilter(event.target.value); setPage(1); }}><option value="all">All accounts</option><option value="active">Active</option><option value="pending">Invited</option><option value="inactive">Inactive</option></select></label></div>
+      {deletedAdminsOpen && <section className="owner-deleted-admins" aria-label="Deleted administrator accounts"><header><div><strong>Deleted administrator accounts</strong><span>Restore access with each account’s previous status.</span></div><div><button type="button" disabled={bulkBusy || !selectedDeletedAdminIds.length} onClick={() => restoreDeletedAdmins()}><i className="fas fa-rotate-left" /> Restore selected ({selectedDeletedAdminIds.length})</button><button type="button" className="owner-deleted-admins-close" onClick={() => setDeletedAdminsOpen(false)} aria-label="Close deleted administrator accounts"><i className="fas fa-xmark" /></button></div></header>{deletedAdmins.length ? <div className="owner-deleted-admin-list">{deletedAdmins.map(admin => <label key={admin.id}><input type="checkbox" checked={selectedDeletedAdminIds.includes(admin.id)} onChange={event => setSelectedDeletedAdminIds(current => event.target.checked ? [...new Set([...current, admin.id])] : current.filter(id => id !== admin.id))} /><span><strong>{admin.displayName}</strong><small>{admin.email} · {admin.status} before deletion</small></span><button type="button" disabled={bulkBusy} onClick={event => { event.preventDefault(); event.stopPropagation(); restoreDeletedAdmins([admin.id]); }}>Restore</button></label>)}</div> : <p>No deleted administrator accounts.</p>}</section>}
+      <div className="owner-filters"><label className="owner-search"><i className="fas fa-magnifying-glass" /><input type="search" placeholder="Search by name or email" value={searchInput} onChange={event => setSearchInput(event.target.value)} /></label><label className="owner-status-filter"><span>Status</span><select value={statusFilter} onChange={event => { setStatusFilter(event.target.value); setPage(1); }}><option value="all">All accounts</option><option value="active">Active</option><option value="pending">Pending invitations</option><option value="inactive">Inactive</option></select></label></div>
       <div className="owner-table-wrap"><div className="owner-table-scroll"><table className="owner-table"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Status</th><th className="owner-actions-heading">Actions</th></tr></thead><tbody>{admins.map(admin => <tr key={admin.id}>
-        <td className="owner-name-cell"><strong>{admin.displayName}</strong></td>
-        <td className="owner-email-cell">{admin.email}</td>
-        <td className="owner-phone-cell">{admin.phone || <span>Not provided</span>}</td>
+        <td className="owner-name-cell"><strong><ExpandableCell>{admin.displayName}</ExpandableCell></strong></td>
+        <td className="owner-email-cell"><ExpandableCell>{admin.email}</ExpandableCell></td>
+        <td className="owner-phone-cell"><ExpandableCell>{admin.phone || <span>Not provided</span>}</ExpandableCell></td>
         <td><div className="owner-role-cell">{editingRolesId === admin.id ? <details className="owner-role-dropdown" open><summary>Choose roles <i className="fas fa-chevron-down" aria-hidden="true" /></summary><div className="owner-role-dropdown-panel"><fieldset className="owner-role-checks owner-row-role-checks" aria-label={`Access roles for ${admin.displayName}`}>{roles.map(([value, label]) => <label key={value}><input type="checkbox" checked={draftRoles.includes(value)} disabled={busy || (value !== 'platform_owner' && draftRoles.includes('platform_owner'))} onChange={event => setDraftRoles(current => updateRoleSelection(current, value, event.target.checked))} /> <span>{label}</span></label>)}</fieldset><div className="owner-role-edit-actions"><button type="button" className="owner-role-save" disabled={busy || !draftRoles.length} onClick={() => updateAdmin(admin.id, 'roles', { roles: draftRoles }, 'Roles updated.')}>Confirm</button><button type="button" className="owner-role-cancel" disabled={busy} onClick={() => setEditingRolesId(null)}>Cancel</button></div></div></details> : <>{(admin.roles || [admin.role]).includes('platform_owner') ? <div className="owner-role-badges"><span className="is-super-admin">Super admin (full access)</span></div> : (admin.roles || [admin.role]).length > 1 ? <details className="owner-role-dropdown owner-role-view-dropdown" onToggle={positionRoleViewDropdown}><summary>See roles <i className="fas fa-chevron-down" aria-hidden="true" /></summary><div className="owner-role-dropdown-panel"><div className="owner-role-badges">{(admin.roles || [admin.role]).map(value => <span key={value}>{roles.find(([role]) => role === value)?.[1] || value}</span>)}</div></div></details> : <div className="owner-role-badges">{(admin.roles || [admin.role]).map(value => <span key={value}>{roles.find(([role]) => role === value)?.[1] || value}</span>)}</div>}{String(admin.id) === String(owner?.id) ? <span className="owner-protected-status" title="Your active super-admin account cannot have its roles changed">Current session protected</span> : <button type="button" className="owner-role-edit" disabled={busy} onClick={() => { setDraftRoles(admin.roles || [admin.role]); setEditingRolesId(admin.id); }} title="Edit access roles" aria-label={`Edit access roles for ${admin.displayName}`}><i className="fas fa-pen" /></button>}</>}</div></td>
         <td className={`owner-status-column ${admin.status === 'active' ? 'is-active' : admin.status === 'inactive' ? 'is-inactive' : 'is-pending'}`}><div className="owner-status-cell">{admin.role === 'platform_owner' ? <span className="owner-protected-status">Protected</span> : admin.status === 'pending' ? <span className="owner-status-pill pending">Invitation pending</span> : <><button type="button" role="switch" aria-checked={admin.status === 'active'} aria-label={`${admin.status === 'active' ? 'Deactivate' : 'Activate'} ${admin.displayName}`} className={`owner-status-toggle ${admin.status === 'active' ? 'is-on' : 'is-off'}`} disabled={busy} onClick={() => { const nextStatus = admin.status === 'active' ? 'inactive' : 'active'; updateAdmin(admin.id, 'status', { status: nextStatus }, nextStatus === 'active' ? 'Account activated.' : 'Account deactivated.'); }}><span className="owner-status-toggle-knob" /></button><span className={`owner-status-label ${admin.status}`}>{admin.status === 'active' ? 'Active' : 'Inactive'}</span></>}</div></td>
-        <td><div className="owner-row-actions"><button type="button" className="owner-action-button owner-link-action" aria-label={admin.status === 'pending' ? `Resend setup link to ${admin.displayName}` : `Send password reset link to ${admin.displayName}`} disabled={busy || admin.role === 'platform_owner' || admin.status === 'inactive'} title={admin.status === 'inactive' ? 'Activate this account before sending a link' : undefined} onClick={() => updateAdmin(admin.id, 'password-reset', null, admin.status === 'pending' ? 'Setup link sent.' : 'Password reset link sent.')}>{admin.status === 'pending' && <i className="fas fa-paper-plane" aria-hidden="true" />} {admin.status === 'pending' ? 'Resend setup' : 'Reset password'}</button><button type="button" className="owner-action-button delete owner-icon-action" aria-label={`Delete administrator ${admin.displayName}`} title="Delete administrator" disabled={busy || admin.role === 'platform_owner'} onClick={() => { if (window.confirm(`Permanently delete ${admin.displayName} (${admin.email})? This removes their admin login, not portfolio content.`)) updateAdmin(admin.id, 'delete', null, 'Administrator account deleted.'); }}><i className="fas fa-trash-can" aria-hidden="true" /></button></div></td>
+        <td><div className="owner-row-actions"><button type="button" className="owner-action-button owner-link-action" aria-label={admin.status === 'pending' ? `Resend setup link to ${admin.displayName}` : `Send password reset link to ${admin.displayName}`} disabled={busy || admin.role === 'platform_owner' || admin.status === 'inactive'} title={admin.status === 'inactive' ? 'Activate this account before sending a link' : undefined} onClick={() => updateAdmin(admin.id, 'password-reset', null, admin.status === 'pending' ? 'Setup link sent.' : 'Password reset link sent.')}>{admin.status === 'pending' && <i className="fas fa-paper-plane" aria-hidden="true" />} {admin.status === 'pending' ? 'Resend setup' : 'Reset password'}</button><button type="button" className="owner-action-button delete owner-icon-action" aria-label={`Delete administrator ${admin.displayName}`} title="Move to deleted accounts" disabled={busy || admin.role === 'platform_owner'} onClick={() => { if (window.confirm(`Move ${admin.displayName} (${admin.email}) to deleted accounts? You can restore the account later.`)) updateAdmin(admin.id, 'delete', null, 'Administrator account moved to deleted accounts.'); }}><i className="fas fa-trash-can" aria-hidden="true" /></button></div></td>
       </tr>)}</tbody></table>{admins.length === 0 && <div className="owner-empty"><i className="fas fa-user-magnifying-glass" /><strong>No administrators found</strong><span>Try another search or status filter.</span></div>}</div></div>
       <footer className="owner-pagination"><span>Page {page} of {totalPages}</span><div><button disabled={page <= 1 || busy} onClick={() => setPage(value => Math.max(1, value - 1))}><i className="fas fa-chevron-left" /> Previous</button><button disabled={page >= totalPages || busy} onClick={() => setPage(value => Math.min(totalPages, value + 1))}>Next <i className="fas fa-chevron-right" /></button></div></footer>
     </section>
 
     <section className="owner-card owner-audit" id="recent-activity" aria-labelledby="owner-audit-title">
-      <header className="owner-audit-heading"><div><p className="owner-eyebrow">SECURITY HISTORY</p><h2 id="owner-audit-title">Recent access activity</h2><p>Review administrator actions and remove individual records when needed.</p></div><span className="owner-audit-count">{auditEvents.length} records</span></header>
+      <header className="owner-audit-heading"><div><p className="owner-eyebrow">SECURITY HISTORY</p><h2 id="owner-audit-title">Recent access activity</h2><p>Review administrator actions. Deleted history can be restored by the dates it was removed.</p></div><span className="owner-audit-count">{auditEvents.length} active · {deletedAuditCount} deleted</span></header>
       <div className="owner-audit-body">
         <form className="owner-audit-search" onSubmit={event => { event.preventDefault(); setActivitySearch(activitySearchInput.trim().toLowerCase()); }}>
           <label><i className="fas fa-magnifying-glass" /><input type="search" value={activitySearchInput} onChange={event => { setActivitySearchInput(event.target.value); setActivitySearch(event.target.value.trim().toLowerCase()); }} placeholder="Search activity, admin, or email" aria-label="Search access activity" /></label>
           <button type="submit">Search</button>
+          <button className="owner-audit-restore" type="button" disabled={!deletedAuditCount || restoringAudit || deletingAllAudit} onClick={() => setRestoreAuditOpen(true)}>Restore activity</button>
           <button className="owner-audit-delete-all owner-audit-icon-button" type="button" aria-label="Delete all activity records" title="Delete all activity records" disabled={!auditEvents.length || deletingAllAudit || deletingAuditId !== null} onClick={deleteAllAudit}><i className={`fas ${deletingAllAudit ? 'fa-spinner fa-spin' : 'fa-trash-can'}`} /></button>
         </form>
         {auditEvents.length ? visibleAuditEvents.length ? <>
@@ -561,7 +724,7 @@ export default function PlatformOwnerPage() {
           <div className="owner-audit-table-scroll" role="region" aria-label="Recent access activity table" tabIndex="0">
             <table className="owner-audit-table"><thead><tr><th>Activity</th><th>Date / time</th><th>Action</th></tr></thead>
               <tbody>{visibleAuditEvents.map(event => <tr key={event.id}>
-                <td><div className="owner-audit-activity"><span className="owner-audit-dot" /><div><strong>{formatActivityName(event.action)}</strong><small>{event.actorEmail || 'System'}{event.targetEmail ? ` · ${event.targetEmail}` : ''}</small></div></div></td>
+                <td><div className="owner-audit-activity"><span className="owner-audit-dot" /><div><strong><ExpandableCell>{formatActivityName(event.action)}</ExpandableCell></strong><small><ExpandableCell>{event.actorEmail || 'System'}{event.targetEmail ? ` · ${event.targetEmail}` : ''}</ExpandableCell></small></div></div></td>
                 <td><time dateTime={event.createdAt}>{formatActivityTime(event.createdAt)}</time></td>
                 <td><button type="button" className="owner-audit-delete" aria-label={`Delete ${formatActivityName(event.action)} activity`} title="Delete activity" disabled={deletingAllAudit || deletingAuditId !== null} onClick={() => deleteAuditEvent(event)}><i className={`fas ${deletingAuditId === event.id ? 'fa-spinner fa-spin' : 'fa-trash-can'}`} aria-hidden="true" /></button></td>
               </tr>)}</tbody>
@@ -571,6 +734,24 @@ export default function PlatformOwnerPage() {
       </div>
     </section>
     </>}
+    {responseDialogOpen && <div className="owner-confirm-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !responseBusy) setResponseDialogOpen(false); }}><form className="owner-confirm-dialog owner-support-response-dialog" role="dialog" aria-modal="true" aria-labelledby="owner-support-response-title" onSubmit={sendBulkSupportResponse}>
+      <span className="owner-confirm-icon"><i className="fas fa-reply" aria-hidden="true" /></span><h3 id="owner-support-response-title">Reply to {selectedVisibleSupportRequests.length} open ticket{selectedVisibleSupportRequests.length === 1 ? '' : 's'}</h3>
+      <p>This response will be emailed separately to every selected requester. Sending a reply leaves each ticket open.</p><label htmlFor="owner-support-response-body">Your response</label><textarea id="owner-support-response-body" required minLength="3" maxLength="5000" rows="6" value={responseDraft} onChange={event => setResponseDraft(event.target.value)} placeholder="Write your response to the requester(s)" />
+      <div className="owner-confirm-actions"><button type="button" className="owner-confirm-cancel" disabled={responseBusy} onClick={() => setResponseDialogOpen(false)}>Cancel</button><button type="submit" className="owner-confirm-submit" disabled={responseBusy || responseDraft.trim().length < 3 || selectedVisibleSupportRequests.length > 50}>{responseBusy ? 'Sending...' : `Send ${selectedVisibleSupportRequests.length} response${selectedVisibleSupportRequests.length === 1 ? '' : 's'}`}</button></div>
+    </form></div>}
+    {restoreAuditOpen && <div className="owner-confirm-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !restoringAudit) setRestoreAuditOpen(false); }}><form className="owner-confirm-dialog owner-activity-restore-dialog" role="dialog" aria-modal="true" aria-labelledby="owner-activity-restore-title" onSubmit={restoreAuditRange}>
+      <span className="owner-confirm-icon"><i className="fas fa-clock-rotate-left" aria-hidden="true" /></span><h3 id="owner-activity-restore-title">Restore deleted activity</h3><p>Choose the dates when the activity was deleted. Records removed during that range will return to Recent access activity. This restores history records only; it does not undo the admin actions they describe.</p>
+      <label htmlFor="restore-activity-from">Deleted from</label><input id="restore-activity-from" type="date" required value={restoreAuditFrom} onChange={event => setRestoreAuditFrom(event.target.value)} />
+      <label htmlFor="restore-activity-to">Deleted through</label><input id="restore-activity-to" type="date" required value={restoreAuditTo} onChange={event => setRestoreAuditTo(event.target.value)} />
+      <div className="owner-confirm-actions"><button type="button" className="owner-confirm-cancel" disabled={restoringAudit} onClick={() => setRestoreAuditOpen(false)}>Cancel</button><button type="submit" className="owner-confirm-submit" disabled={restoringAudit || !restoreAuditFrom || !restoreAuditTo || restoreAuditFrom > restoreAuditTo}>{restoringAudit ? 'Restoring...' : 'Restore this range'}</button></div>
+    </form></div>}
+    {invitationRequest && <div className="owner-confirm-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !updatingRequestId) setInvitationRequest(null); }}><form className="owner-confirm-dialog owner-invitation-approval" role="dialog" aria-modal="true" aria-labelledby="owner-invitation-title" onSubmit={(event) => { event.preventDefault(); inviteFromRequest(invitationRequest, invitationRoles); }}>
+      <span className="owner-confirm-icon"><i className="fas fa-user-shield" aria-hidden="true" /></span>
+      <h3 id="owner-invitation-title">{invitationRequest.adminStatus === 'inactive' ? `Restore ${invitationRequest.name}'s admin access` : !invitationRequest.adminStatus ? `Create an admin account for ${invitationRequest.name}` : `Approve ${invitationRequest.name}'s admin request`}</h3>
+      <p>{invitationRequest.adminStatus === 'inactive' ? `This email already belongs to an inactive admin. Choose their roles to reactivate the existing account and send a password-reset link to ${invitationRequest.email}. The request stays open until they reset their password and sign in.` : !invitationRequest.adminStatus ? `No admin account currently exists for ${invitationRequest.email}. Choose standard roles and send a setup link. The request stays open until setup is completed and the account is active.` : `Choose the standard access roles for ${invitationRequest.email}. The request stays open until they complete setup and their account becomes active. Super-admin access cannot be granted here.`}</p>
+      <fieldset className="owner-role-checks owner-invitation-roles" aria-label="Roles for the invited administrator"><legend>Admin roles</legend>{standardAdminRoles.map(([value, label]) => <label key={value}><input type="checkbox" checked={invitationRoles.includes(value)} disabled={updatingRequestId === invitationRequest.id} onChange={(event) => setInvitationRoles((current) => event.target.checked ? [...new Set([...current, value])] : current.filter((role) => role !== value))} /> <span>{label}</span></label>)}<small>Choose one or more roles. You can change role access later from Admin accounts.</small></fieldset>
+      <div className="owner-confirm-actions"><button type="button" className="owner-confirm-cancel" disabled={updatingRequestId === invitationRequest.id} onClick={() => setInvitationRequest(null)}>Cancel</button><button type="submit" className="owner-confirm-submit" disabled={updatingRequestId === invitationRequest.id || !invitationRoles.length}>{updatingRequestId === invitationRequest.id ? 'Sending…' : invitationRequest.adminStatus === 'pending' ? 'Save roles & resend link' : invitationRequest.adminStatus === 'inactive' ? 'Reactivate & send password link' : !invitationRequest.adminStatus ? 'Create account & send setup link' : 'Approve & send setup link'}</button></div>
+    </form></div>}
     <p className="owner-data-note"><i className="fas fa-circle-info" /> Roles currently apply to this shared portfolio. Per-customer data separation is part of the next multi-tenant phase.</p>
     </div>
   </main>;

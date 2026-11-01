@@ -1190,7 +1190,7 @@ html.dark-theme #others::before {
   color: var(--text);
   background: var(--panel);
   box-shadow: 0 16px 38px rgba(0, 0, 0, 0.28);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   font-weight: 700;
   animation: viewer-notification-in 180ms ease-out;
 }
@@ -2745,6 +2745,9 @@ footer:not(.admin-footer) .footer-built a {
 }
 
 .download-contact-details { display: grid; gap: 5px; }
+.download-contact-details .contact-cell { display: flex; min-width: 0; align-items: flex-start; gap: 6px; }
+.download-contact-details .contact-cell > i { flex: 0 0 auto; margin-top: 2px; }
+.download-contact-details .contact-cell .expandable-cell { flex: 1; }
 
 .admin-logout {
   min-height: 40px;
@@ -3454,6 +3457,13 @@ html.dark-theme .admin-profile-session-ok {
   font-size: 0.84rem;
 }
 
+.expandable-cell { display: block; min-width: 0; max-width: 100%; }
+.expandable-cell-content { display: block; min-width: 0; max-width: 100%; overflow: hidden; color: inherit; text-overflow: ellipsis; white-space: nowrap; }
+.expandable-cell.is-expanded .expandable-cell-content { overflow: visible; overflow-wrap: anywhere; text-overflow: clip; white-space: normal; }
+.expandable-cell-toggle { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; padding: 0; border: 0; color: var(--accent); background: transparent; font: inherit; font-size: 0.68rem; font-weight: 700; line-height: 1.2; cursor: pointer; }
+.expandable-cell-toggle:hover { text-decoration: underline; }
+.expandable-cell-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
 .download-table td small {
   display: block;
   margin-top: 4px;
@@ -3461,6 +3471,7 @@ html.dark-theme .admin-profile-session-ok {
 }
 
 .download-reason-wrap { margin-top: 4px; }
+.download-reason-wrap .expandable-cell-content { color: var(--faint); font-size: 0.76rem; line-height: 1.3; }
 .download-reason {
   display: -webkit-box;
   max-height: 3.9em;
@@ -5144,7 +5155,8 @@ fieldset.profile-image-visibility-actions {
 .admin-account-menu-logout { display: flex; min-height: 36px; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid #efc9c9; border-radius: 8px; background: #fff7f7; color: #a73737; font: inherit; font-size: 0.78rem; font-weight: 750; text-align: left; cursor: pointer; }
 .admin-account-menu-logout:hover:not(:disabled) { border-color: #dc2626; background: #dc2626; color: #fff; }
 .admin-account-menu-logout:disabled { opacity: 0.6; cursor: wait; }
-.admin-sidebar .admin-nav-link .owner-activity-count { position: absolute; top: -4px; right: -3px; display: grid; width: 20px; min-width: 20px; height: 20px; margin: 0; padding: 0 2px; place-items: center; border: 2px solid var(--accent); border-radius: 50%; background: var(--panel-solid, #fff); color: var(--accent); font-size: 0.58rem; font-weight: 850; line-height: 1; box-shadow: 0 0 0 1px var(--panel-solid, #fff); }
+.admin-sidebar .admin-nav-link .owner-activity-count { position: absolute; top: -2px; right: 0; display: grid; width: auto; min-width: 14px; height: 14px; margin: 0; padding: 0 2px; place-items: center; border: 1px solid var(--panel-solid, #fff); border-radius: 99px; background: #dc3545; color: #fff; font-size: 0.46rem; font-weight: 850; line-height: 1; box-shadow: none; }
+.admin-rail-collapsed .admin-sidebar .admin-nav-link .owner-activity-count { display: grid; position: absolute; top: -2px; right: -1px; min-width: 14px; height: 14px; padding: 0 2px; color: #fff; background: #dc3545; font-size: 0.46rem; animation: none; }
 @media (max-width: 520px) {
   .admin-account-menu-panel { width: min(300px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow-y: auto; }
 }
