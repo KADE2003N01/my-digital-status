@@ -175,8 +175,8 @@
   min-height: 0;
   overflow-wrap: anywhere;
 }
+.auth-login-card .auth-feedback.account-missing { color: var(--text); }
 .auth-login-card .auth-feedback a { color: var(--accent); font-weight: 750; text-decoration: underline; text-underline-offset: 2px; }
-.auth-login-card .auth-feedback.error a { color: inherit; }
 .auth-login-card .auth-feedback a:hover { color: var(--accent-strong); }
 
 .auth-login-card .auth-submit {
