@@ -184,6 +184,7 @@
   font-size: 0.8rem;
   line-height: 1.5;
 }
+.auth-login-card .auth-feedback.account-missing .account-missing-guidance { color: var(--text); }
 .auth-login-card .auth-feedback a { color: var(--accent); font-weight: 750; text-decoration: underline; text-underline-offset: 2px; }
 .auth-login-card .auth-feedback a:hover { color: var(--accent-strong); }
 
