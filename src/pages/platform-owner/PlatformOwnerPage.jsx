@@ -254,8 +254,19 @@ export default function PlatformOwnerPage() {
   }, []);
 
   const refreshInbox = useCallback(() => {
-    loadOwnerInbox().catch((requestError) => setError(requestError.message));
-  }, [loadOwnerInbox]);
+    return platformOwnerRequest('/inbox-counts')
+      .then((result) => setInboxCounts({
+        requests: result.requests || 0,
+        resolvedRequests: result.resolvedRequests || 0,
+        deletedRequests: result.deletedRequests || 0,
+        messages: result.messages || 0,
+        messagesIncoming: result.messagesIncoming || 0,
+        messagesOutgoing: result.messagesOutgoing || 0
+      }))
+      .catch((requestError) => {
+        if (!requestError.message?.toLowerCase().includes('too many requests')) setError(requestError.message);
+      });
+  }, []);
 
   const visibleSupportRequests = supportRequests
     .filter(request => requestStatusView === 'deleted' ? Boolean(request.deletedAt) : !request.deletedAt && request.status === requestStatusView)
@@ -414,13 +425,26 @@ export default function PlatformOwnerPage() {
 
   useEffect(() => {
     if (!owner) return undefined;
-    const timer = window.setInterval(() => loadOwnerInbox().catch(() => {}), 15000);
-    return () => window.clearInterval(timer);
-  }, [owner, loadOwnerInbox]);
+    const refreshWhenVisible = () => {
+      if (!document.hidden) refreshInbox().catch(() => {});
+    };
+    const timer = window.setInterval(refreshWhenVisible, 5000);
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    window.addEventListener('admin-messages-read', refreshWhenVisible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.removeEventListener('admin-messages-read', refreshWhenVisible);
+    };
+  }, [owner, refreshInbox]);
 
   useEffect(() => {
     if (!owner) return undefined;
-    const timer = window.setInterval(() => loadAudit().catch(() => {}), 30000);
+    const timer = window.setInterval(() => {
+      if (!document.hidden) loadAudit().catch(() => {});
+    }, 30000);
     return () => window.clearInterval(timer);
   }, [owner, loadAudit]);
 
@@ -668,7 +692,7 @@ export default function PlatformOwnerPage() {
       </tr>)}</tbody></table></div> : <div className="owner-request-empty"><i className={`fas ${requestStatusView === 'open' ? 'fa-circle-check' : 'fa-box-archive'}`} aria-hidden="true" /><strong>{requestStatusView === 'open' ? 'No open support requests' : requestStatusView === 'deleted' ? 'No deleted requests' : 'No resolved requests yet'}</strong><span>{requestStatusView === 'open' ? 'New requests will appear here. Resolved items remain available in the Resolved tab.' : requestStatusView === 'deleted' ? 'Requests you delete stay here until you restore them.' : 'Requests appear here after their issue is completed or marked resolved.'}</span></div>}
     </section>}
 
-    {messagesView && <div id="owner-messages" className="owner-messages-view"><OwnerMessages onMessagesChanged={refreshInbox} ownerId={owner?.id} /></div>}
+    {messagesView && <div id="owner-messages" className="owner-messages-view"><OwnerMessages onMessagesChanged={refreshInbox} ownerId={owner?.id} ownerEmail={owner?.email} /></div>}
 
     {directoryView && <>
     <section className="owner-stat-grid owner-directory-stats" aria-label="Admin account totals">

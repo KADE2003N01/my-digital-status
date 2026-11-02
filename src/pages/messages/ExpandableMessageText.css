@@ -1,0 +1,5 @@
+.chat-expandable-message { align-self: flex-start; width: fit-content; max-width: 100%; min-width: 0; }
+.chat-expandable-message-text { display: block; width: fit-content; max-width: 100%; min-width: 0; max-height: 14.5em; margin: 0; overflow: hidden; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.45; }
+.chat-expandable-message-text.is-expanded { max-height: none; overflow: visible; }
+.chat-expandable-message-toggle { min-height: 22px; margin: 3px 0 0; padding: 0; border: 0; background: transparent; color: #16834a; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.chat-expandable-message-toggle:hover { color: #0e6538; text-decoration: underline; }
