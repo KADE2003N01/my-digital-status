@@ -116,7 +116,10 @@ export function MessageAttachmentList({ attachments = [] }) {
 function PendingAttachmentPreview({ file, disabled, onRemove }) {
   const [previewUrl, setPreviewUrl] = useState('');
   const [playbackError, setPlaybackError] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef(null);
   const isAudio = file.type.startsWith('audio/');
+
   useEffect(() => {
     if (!isAudio) return undefined;
     const url = URL.createObjectURL(file);
@@ -124,9 +127,28 @@ function PendingAttachmentPreview({ file, disabled, onRemove }) {
     return () => URL.revokeObjectURL(url);
   }, [file, isAudio]);
 
+  const handleAudioToggle = async () => {
+    if (!audioRef.current) return;
+    if (audioRef.current.paused) {
+      setIsPlaying(true);
+      try {
+        await audioRef.current.play();
+      } catch {
+        setIsPlaying(false);
+        setPlaybackError(true);
+      }
+    } else {
+      setIsPlaying(false);
+      audioRef.current.pause();
+    }
+  };
+
   return <div className="message-attachment-pending-item">
     <span className="message-attachment-pending"><i className={`fas ${isAudio ? 'fa-volume-high' : file.type.startsWith('video/') ? 'fa-video' : file.type.startsWith('image/') ? 'fa-image' : 'fa-paperclip'}`} /> {file.name}<button type="button" aria-label={`Remove ${file.name}`} disabled={disabled} onClick={onRemove}><i className="fas fa-xmark" /></button></span>
-    {previewUrl && <audio className="message-attachment-pending-audio" controls preload="metadata" src={previewUrl} aria-label={`Preview ${file.name}`} onError={() => setPlaybackError(true)} />}
+    {previewUrl && <>
+      <button type="button" aria-label={isPlaying ? 'Pause voice message' : 'Play voice message'} onClick={handleAudioToggle} disabled={disabled}><i className={`fas ${isPlaying ? 'fa-pause' : 'fa-play'}`} aria-hidden="true" /></button>
+      <audio ref={audioRef} className="message-attachment-pending-audio" controls preload="metadata" src={previewUrl} aria-label={`Preview ${file.name}`} onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} onEnded={() => setIsPlaying(false)} onError={() => setPlaybackError(true)} />
+    </>}
     {playbackError && <small className="message-attachment-playback-error">This browser cannot preview this audio format.</small>}
   </div>;
 }
@@ -239,7 +261,7 @@ export function MessageAttachmentPicker({ files, onFilesChange, disabled, onErro
           const type = (recorder.mimeType || 'audio/webm').split(';')[0].trim().toLowerCase();
           const extension = type.includes('ogg') ? 'ogg' : type.includes('mp4') ? 'm4a' : 'webm';
           const voiceFile = new File(chunksRef.current, `Voice message ${new Date().toLocaleString().replace(/[\\/:]/g, '-')}.${extension}`, { type });
-          if (voiceFile.size > 128) addFiles([voiceFile]);
+          if (voiceFile.size > 0) addFiles([voiceFile]);
           else onError('The voice recording was empty. Please record again and wait for the recording to finish before sending.');
         }
         stream.getTracks().forEach((track) => track.stop());

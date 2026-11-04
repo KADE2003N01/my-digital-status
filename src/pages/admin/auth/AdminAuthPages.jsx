@@ -5,16 +5,22 @@ import LanguageSelector from '../../../components/LanguageSelector.jsx';
 import { useLanguage } from '../../../context/LanguageContext.jsx';
 import './AdminAuthPages.css';
 
-const allowedDestinations = new Set([
-  'admin.html', 'admin-downloads.html', 'admin-homepage.html', 'admin-documents.html',
-  'admin-profile.html', 'admin-accounts.html', 'admin-messages.html', 'platform-owner.html'
+const allowedDestinations = new Map([
+  ['/admin', '/admin'], ['admin.html', '/admin'],
+  ['/admin/downloads', '/admin/downloads'], ['admin-downloads.html', '/admin/downloads'],
+  ['/admin/homepage', '/admin/homepage'], ['admin-homepage.html', '/admin/homepage'],
+  ['/admin/documents', '/admin/documents'], ['admin-documents.html', '/admin/documents'],
+  ['/admin/profile', '/admin/profile'], ['admin-profile.html', '/admin/profile'],
+  ['/admin/accounts', '/admin/accounts'], ['admin-accounts.html', '/admin/accounts'],
+  ['/admin/messages', '/admin/messages'], ['admin-messages.html', '/admin/messages'],
+  ['/platform/owner', '/platform/owner'], ['platform-owner.html', '/platform/owner']
 ]);
 
 function loginDestination(requested) {
   // Sign-in always opens the regular workspace first. Super-admins can enter
   // the owner console explicitly from its sidebar link after signing in.
-  if (requested === 'platform-owner.html') return 'admin.html';
-  return allowedDestinations.has(requested) ? requested : 'admin.html';
+  const destination = allowedDestinations.get(requested) || '/admin';
+  return destination === '/platform/owner' ? '/admin' : destination;
 }
 
 function AuthFeedback({ children, error = false, className = '' }) {
@@ -106,7 +112,7 @@ export function AdminLoginPage() {
 
   return <main className="auth-page auth-login-page"><div className="auth-layout">
     <LanguageSelector />
-    <a className="auth-back-link" href="../index.html"><i className="fas fa-arrow-left" aria-hidden="true" /> {t('Back to portfolio')}</a>
+    <a className="auth-back-link" href="/"><i className="fas fa-arrow-left" aria-hidden="true" /> {t('Back to portfolio')}</a>
     <section className="auth-card auth-login-card" aria-labelledby="login-title">
       <div className="auth-heading"><span className="auth-icon"><i className="fas fa-shield-halved" aria-hidden="true" /></span><p className="auth-eyebrow">{t('PRIVATE WORKSPACE')}</p><h1 id="login-title">{t('Welcome back')}</h1><p>{t('Sign in with your administrator credentials to continue.')}</p></div>
       <form className="auth-form" onSubmit={submit}>
@@ -119,8 +125,8 @@ export function AdminLoginPage() {
         <AuthFeedback error={isError} className={accountMissing ? 'account-missing' : ''}>{accountMissing ? <>{t('No admin account was found for this email!')}<br /><span className="account-missing-guidance">{t('Click the support link below to request an invitation.')}</span></> : feedback}</AuthFeedback>
         <button className="auth-submit" type="submit" disabled={submitting || clearingSession}><span>{clearingSession ? t('Checking credentials…') : submitting ? t('Checking credentials…') : t('Sign in to admin')}</span><i className={`fas ${submitting || clearingSession ? 'fa-spinner fa-spin' : 'fa-arrow-right'}`} aria-hidden="true" /></button>
       </form>
-      <a className="auth-recovery-link" href="admin-reset-password.html">{t('Forgot your password?')}</a>
-      <a className="auth-login-help-link" href="admin-support.html">
+      <a className="auth-recovery-link" href="/admin/reset-password">{t('Forgot your password?')}</a>
+      <a className="auth-login-help-link" href="/admin/support">
         <i className="fas fa-life-ring" aria-hidden="true" />
         <span><strong>{t('Do you need support?')}</strong><small>{t('Click here to request an admin invitation or get account help.')}</small></span>
         <i className="fas fa-arrow-right auth-login-help-arrow" aria-hidden="true" />
@@ -134,7 +140,7 @@ export function AdminLoginPage() {
 export function AdminPasswordResetPage() {
   const { t } = useLanguage();
   const token = useMemo(() => new URLSearchParams(window.location.search).get('token') || '', []);
-  const isSetupRequest = !token && window.location.pathname.split('/').pop() === 'admin-setup-account.html';
+  const isSetupRequest = !token && window.location.pathname === '/admin/setup-account';
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [phone, setPhone] = useState('');
@@ -200,12 +206,12 @@ export function AdminPasswordResetPage() {
 
   return <main className="auth-page"><div className="auth-layout">
     <LanguageSelector />
-    <a className="auth-back-link" href="admin-login.html"><i className="fas fa-arrow-left" aria-hidden="true" /> {t('Back to admin sign-in')}</a>
+    <a className="auth-back-link" href="/admin/login"><i className="fas fa-arrow-left" aria-hidden="true" /> {t('Back to admin sign-in')}</a>
     <section className="auth-card" aria-labelledby="reset-title">
       <div className="auth-heading"><span className="auth-icon"><i className={`fas ${isSetup ? 'fa-user-check' : 'fa-key'}`} aria-hidden="true" /></span><p className="auth-eyebrow">{isSetup ? t('NEW ADMIN ACCOUNT') : t('ACCOUNT RECOVERY')}</p><h1 id="reset-title">{isSetupRequest ? t('Resend setup invitation') : isSetup ? t('Set up your password') : t(token ? 'Reset password' : 'Forgot password?')}</h1><p>{showRequestForm ? isSetupRequest ? t('Enter the email address that received your administrator invitation. We will send a new setup link if the invitation is still pending.') : t('Enter your admin email. If it belongs to an active administrator account, we will email a one-time password reset link.') : isSetup ? t('Choose a password to activate your administrator account.') : t('Choose a new password for your admin account.')}</p></div>
       {checkingLink ? <div className="auth-link-check" role="status"><i className="fas fa-spinner fa-spin" /> {t('Checking your secure link…')}</div>
-        : completed || requestSent ? <div className="auth-complete"><span><i className="fas fa-circle-check" /></span><AuthFeedback>{feedback}</AuthFeedback>{requestSent && <p className="auth-delivery-hint">{isSetupRequest ? t('Check your inbox and spam folder. If no setup email arrives, contact the person who invited you.') : t('Check your inbox and spam folder. If no reset email arrives, contact the platform owner.')}</p>}<a className="auth-submit auth-submit-link" href="admin-login.html">{t('Continue to sign in')}<i className="fas fa-arrow-right" /></a>{requestSent && <button type="button" className="auth-secondary-link" onClick={() => { setRequestSent(false); setEmail(''); setFeedback(''); }}>{t('Use a different email')}</button>}</div>
-      : token && !canSetPassword ? <div className="auth-link-expired"><AuthFeedback error={isError}>{feedback || t('This link has expired or already been used.')}</AuthFeedback><p>{t('Request a fresh setup or reset link with your admin email.')}</p><a className="auth-submit auth-submit-link" href={purpose === 'setup' ? 'admin-setup-account.html' : 'admin-reset-password.html'}>{t('Request a new link')}<i className="fas fa-arrow-right" /></a></div>
+        : completed || requestSent ? <div className="auth-complete"><span><i className="fas fa-circle-check" /></span><AuthFeedback>{feedback}</AuthFeedback>{requestSent && <p className="auth-delivery-hint">{isSetupRequest ? t('Check your inbox and spam folder. If no setup email arrives, contact the person who invited you.') : t('Check your inbox and spam folder. If no reset email arrives, contact the platform owner.')}</p>}<a className="auth-submit auth-submit-link" href="/admin/login">{t('Continue to sign in')}<i className="fas fa-arrow-right" /></a>{requestSent && <button type="button" className="auth-secondary-link" onClick={() => { setRequestSent(false); setEmail(''); setFeedback(''); }}>{t('Use a different email')}</button>}</div>
+      : token && !canSetPassword ? <div className="auth-link-expired"><AuthFeedback error={isError}>{feedback || t('This link has expired or already been used.')}</AuthFeedback><p>{t('Request a fresh setup or reset link with your admin email.')}</p><a className="auth-submit auth-submit-link" href={purpose === 'setup' ? '/admin/setup-account' : '/admin/reset-password'}>{t('Request a new link')}<i className="fas fa-arrow-right" /></a></div>
           : <form className="auth-form" onSubmit={submit}>
             {showRequestForm ? <><label htmlFor="reset-email">{t('Admin email')}</label><div className="auth-input-wrap"><i className="far fa-envelope" aria-hidden="true" /><input id="reset-email" name="email" type="email" autoComplete="email" maxLength={254} required value={email} onChange={event => setEmail(event.target.value)} /></div></> : <>
               {isSetup && <><label htmlFor="setup-admin-name">{t('Full name')}</label><div className="auth-input-wrap"><i className="far fa-user" aria-hidden="true" /><input id="setup-admin-name" name="displayName" autoComplete="name" minLength={2} maxLength={120} required value={displayName} onChange={event => setDisplayName(event.target.value)} /></div>
@@ -216,7 +222,7 @@ export function AdminPasswordResetPage() {
             </>}
             <AuthFeedback error={isError}>{feedback}</AuthFeedback>
             <button className="auth-submit" type="submit" disabled={busy}><span>{busy ? t('Please wait…') : showRequestForm ? isSetupRequest ? t('Resend setup email') : t('Send password reset link') : isSetup ? t('Set password and activate') : t('Save new password')}</span><i className={`fas ${busy ? 'fa-spinner fa-spin' : 'fa-arrow-right'}`} aria-hidden="true" /></button>
-            {token && !isError && feedback && <a className="auth-recovery-link" href="admin-login.html">{t('Return to sign in')}</a>}
+            {token && !isError && feedback && <a className="auth-recovery-link" href="/admin/login">{t('Return to sign in')}</a>}
           </form>}
       <p className="auth-footnote"><i className="fas fa-lock" aria-hidden="true" /> {t('Secure, one-time link · Expires after 30 minutes')}</p>
     </section>

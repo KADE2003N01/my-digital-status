@@ -99,6 +99,8 @@
 }
 
 .digital-status-form input,
+.digital-status-form select,
+.digital-status-form textarea,
 .digital-status-editor input:not([type="checkbox"]),
 .digital-status-editor textarea {
   width: 100%;
@@ -109,6 +111,36 @@
   background: var(--panel-solid);
   color: var(--text);
   font: inherit;
+}
+
+.digital-status-form select {
+  cursor: pointer;
+}
+
+.digital-status-form textarea {
+  min-height: 150px;
+  resize: vertical;
+}
+
+.digital-status-form input:focus,
+.digital-status-form select:focus,
+.digital-status-form textarea:focus {
+  border-color: var(--accent);
+  outline: 3px solid color-mix(in srgb, var(--accent) 18%, transparent);
+  outline-offset: 1px;
+}
+
+.platform-issue-card {
+  width: min(100%, 760px);
+}
+
+.platform-issue-back {
+  margin-top: 18px;
+  font-weight: 700;
+}
+
+.platform-issue-back a {
+  color: var(--accent-strong);
 }
 
 .digital-status-editor textarea {
@@ -247,6 +279,33 @@
   color: var(--accent-strong);
 }
 
+.platform-help-grid {
+  align-items: stretch;
+}
+
+.platform-help-card details {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.platform-help-card summary {
+  color: var(--text);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.platform-help-card details p,
+.platform-help-card > p,
+.platform-help-card li {
+  color: var(--text-muted);
+  font-size: .9rem;
+  line-height: 1.65;
+}
+
+.platform-help-card details p { margin: 8px 0 0; }
+.platform-help-card ol { display: grid; gap: 12px; padding-left: 22px; }
+.platform-help-card a { color: var(--accent-strong); font-weight: 700; }
+
 .public-portfolio-page {
   padding: 0;
 }
@@ -339,4 +398,45 @@
   .digital-status-header nav {
     gap: 10px;
   }
+}
+
+/* Keep account workspace cards and form controls within the available screen. */
+.digital-status-page {
+  width: 100%;
+  max-width: 100vw;
+  min-width: 0;
+  overflow-x: clip;
+}
+
+.digital-status-page *,
+.digital-status-page *::before,
+.digital-status-page *::after {
+  box-sizing: border-box;
+}
+
+.digital-status-content,
+.digital-status-grid,
+.digital-status-card,
+.digital-status-form,
+.digital-status-editor {
+  min-width: 0;
+}
+
+.digital-status-form input,
+.digital-status-editor input,
+.digital-status-editor textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.digital-status-portfolio-list li,
+.digital-status-portfolio-list li > div,
+.digital-status-public-link {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  .digital-status-grid { grid-template-columns: minmax(0, 1fr); }
+  .digital-status-header { flex-wrap: wrap; }
 }

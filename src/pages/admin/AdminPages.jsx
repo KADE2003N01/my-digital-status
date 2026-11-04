@@ -11,15 +11,15 @@ import { getStoredSessionToken, storeSessionToken } from '../../services/adminSe
 import { AdminLoginPage as AdminLoginView, AdminPasswordResetPage as AdminPasswordResetView } from './auth/AdminAuthPages.jsx';
 import { formatChatTime, getMessageInitials, getMessageReceiptState, groupMessagesByDay } from '../messages/chatFormatting.js';
 import ExpandableMessageText from '../messages/ExpandableMessageText.jsx';
-import MessageReactionPicker from '../messages/MessageReactionPicker.jsx';
+import MessageReactionPicker, { getReactionDisplay } from '../messages/MessageReactionPicker.jsx';
 import './AdminAccountsPage.css';
 import './AdminMessagesPage.css';
 
 export function AdminLoginPage() { return <AdminLoginView />; }
 export function AdminPasswordResetPage() { return <AdminPasswordResetView />; }
 
-const ADMIN_LOGIN_URL = 'admin-login.html';
-const PUBLIC_HOME_URL = '/index.html';
+const ADMIN_LOGIN_URL = '/admin/login';
+const PUBLIC_HOME_URL = '/';
 const AdminSessionContext = createContext(null);
 const ADMIN_NOTIFICATION_EVENT = 'kade-admin-notification';
 const ADMIN_PROFILE_IMAGE_UPDATED = 'kade-admin-profile-image-updated';
@@ -447,12 +447,12 @@ function AdminFrame({ session, logout, logoutError, loggingOut, active, download
         };
     }, [session.role, session.roles]);
     const links = [
-        { id: 'overview', href: 'admin.html', icon: 'fa-chart-pie', text: 'Overview' },
-        { id: 'downloads', href: 'admin-downloads.html', icon: 'fa-download', text: 'Downloads' },
-        { id: 'homepage', href: 'admin-homepage.html', icon: 'fa-pen-to-square', text: 'Landing page' },
-        { id: 'documents', href: 'admin-documents.html', icon: 'fa-file-arrow-up', text: 'Documents' },
-        { id: 'profile', href: 'admin-profile.html', icon: 'fa-id-badge', text: 'My profile' },
-        { id: 'messages', href: 'admin-messages.html', icon: 'fa-comment', text: 'Messages' }
+        { id: 'overview', href: '/admin', icon: 'fa-chart-pie', text: 'Overview' },
+        { id: 'downloads', href: '/admin/downloads', icon: 'fa-download', text: 'Downloads' },
+        { id: 'homepage', href: '/admin/homepage', icon: 'fa-pen-to-square', text: 'Landing page' },
+        { id: 'documents', href: '/admin/documents', icon: 'fa-file-arrow-up', text: 'Documents' },
+        { id: 'profile', href: '/admin/profile', icon: 'fa-id-badge', text: 'My profile' },
+        { id: 'messages', href: '/admin/messages', icon: 'fa-comment', text: 'Messages' }
     ];
     const note = {
         overview: 'Review visitor activity and open the page responsible for each task.',
@@ -481,19 +481,19 @@ function AdminFrame({ session, logout, logoutError, loggingOut, active, download
             <TimedNotification message={notification?.message} tone={notification?.tone} onClose={dismissNotification} />
             <header className="admin-topbar">
                 <div className="admin-brand-group">
-                    <a className="admin-avatar-link" href="admin-profile.html" title={`${session.displayName} · ${session.email}`} aria-label="Administrator profile">
+                    <a className="admin-avatar-link" href="/admin/profile" title={`${session.displayName} · ${session.email}`} aria-label="Administrator profile">
                         {profileImage
                             ? <img className="admin-avatar-img" src={profileImage} alt="" />
                             : <span className="admin-account-avatar admin-avatar-topbar" aria-hidden="true">{initials}</span>}
                     </a>
-                    <a className="admin-brand" href="../index.html">
+                    <a className="admin-brand" href="/">
                         <span>{session.displayName}<span className="admin-brand-sub"> </span></span>
                     </a>
                 </div>
                 <div className="admin-topbar-actions">
                     <button className="admin-mobile-nav-toggle" type="button" aria-expanded={mobileNavOpen} aria-controls="admin-sidebar" aria-label={mobileNavOpen ? 'Close navigation' : 'Open navigation'} onClick={() => setMobileNavOpen((open) => !open)}><i className={`fas ${mobileNavOpen ? 'fa-xmark' : 'fa-bars'}`} aria-hidden="true" /></button>
                     <span className="prototype-pill"><span /> ADMIN</span>
-                    <a className="admin-view-site" href="../index.html" aria-label={t('View site')} title={t('View site')}><i className="fas fa-arrow-up-right-from-square" aria-hidden="true" /><span>{t('View site')}</span></a>
+                    <a className="admin-view-site" href="/" aria-label={t('View site')} title={t('View site')}><i className="fas fa-arrow-up-right-from-square" aria-hidden="true" /><span>{t('View site')}</span></a>
                 </div>
             </header>
             <main className="admin-shell">
@@ -517,7 +517,7 @@ function AdminFrame({ session, logout, logoutError, loggingOut, active, download
                             {link.id === 'messages' && <span className={`nav-count${messageCount > 0 ? ' has-new' : ''}${railCollapsed ? ' is-rail-count' : ''}`} aria-label={`${messageCount} unread messages`}>{messageCount > 0 ? messageCount : null}</span>}
                         </a>
                     ))}
-                    {hasRole('platform_owner') && <a className={`admin-nav-link${ownerActivityCount > 0 ? ' has-owner-activity' : ''}`} href="platform-owner.html" title={ownerActivityCount ? `Super-admin workspace: ${ownerActivityCount} new item${ownerActivityCount === 1 ? '' : 's'} need attention` : t('Control Admins')} aria-label={ownerActivityCount ? `Control Admins, ${ownerActivityCount} new item${ownerActivityCount === 1 ? '' : 's'} need attention` : t('Control Admins')} onClick={collapseRailForNavigation}><i className="fas fa-shield-halved" aria-hidden="true" /><span>{t('Control Admins')}</span>{ownerActivityCount > 0 && <span className="nav-count owner-activity-count" aria-label={`${ownerActivityCount} new super-admin item${ownerActivityCount === 1 ? '' : 's'} need attention`}>{ownerActivityCount > 99 ? '99+' : ownerActivityCount}</span>}</a>}
+                    {hasRole('platform_owner') && <a className={`admin-nav-link${ownerActivityCount > 0 ? ' has-owner-activity' : ''}`} href="/platform/owner" title={ownerActivityCount ? `Super-admin workspace: ${ownerActivityCount} new item${ownerActivityCount === 1 ? '' : 's'} need attention` : t('Control Admins')} aria-label={ownerActivityCount ? `Control Admins, ${ownerActivityCount} new item${ownerActivityCount === 1 ? '' : 's'} need attention` : t('Control Admins')} onClick={collapseRailForNavigation}><i className="fas fa-shield-halved" aria-hidden="true" /><span>{t('Control Admins')}</span>{ownerActivityCount > 0 && <span className="nav-count owner-activity-count" aria-label={`${ownerActivityCount} new super-admin item${ownerActivityCount === 1 ? '' : 's'} need attention`}>{ownerActivityCount > 99 ? '99+' : ownerActivityCount}</span>}</a>}
                     <AdminThemeToggle />
                     <LanguageSelector />
                     <div className="admin-sidebar-note">
@@ -561,7 +561,7 @@ function AdminPage({ active, children }) {
     useEffect(() => {
         if (auth.ready && auth.session && !canAccess) {
             const roles = auth.session.roles || [auth.session.role];
-            const destination = roles.includes('download_manager') ? 'admin-downloads.html' : roles.includes('content_manager') ? 'admin-homepage.html' : roles.includes('document_manager') ? 'admin-documents.html' : roles.includes('profile_manager') ? 'admin-profile.html' : 'admin.html';
+            const destination = roles.includes('download_manager') ? '/admin/downloads' : roles.includes('content_manager') ? '/admin/homepage' : roles.includes('document_manager') ? '/admin/documents' : roles.includes('profile_manager') ? '/admin/profile' : '/admin';
             window.location.replace(destination);
         }
     }, [auth.ready, auth.session, canAccess]);
@@ -630,14 +630,14 @@ function OverviewContent({ today, documents = [], documentsError }) {
             <section className="admin-panel overview-links" aria-label="Dashboard sections">
                 <div className="panel-heading"><div><p className="admin-eyebrow">QUICK ACCESS</p><h2>Manage your portfolio</h2></div></div>
                 <div className="overview-link-grid">
-                    <a className="overview-link-card" href="admin-downloads.html"><span className="section-icon"><i className="fas fa-download" aria-hidden="true" /></span><span><strong>Downloads</strong><small>Review visitor requests and contacts</small></span><i className="fas fa-arrow-right" aria-hidden="true" /></a>
-                    <a className="overview-link-card" href="admin-homepage.html"><span className="section-icon"><i className="fas fa-pen-to-square" aria-hidden="true" /></span><span><strong>Landing page</strong><small>Manage public landing-page content</small></span><i className="fas fa-arrow-right" aria-hidden="true" /></a>
-                    <a className="overview-link-card" href="admin-profile.html"><span className="section-icon"><i className="fas fa-id-badge" aria-hidden="true" /></span><span><strong>My profile</strong><small>Manage your admin details and image</small></span><i className="fas fa-arrow-right" aria-hidden="true" /></a>
+                    <a className="overview-link-card" href="/admin/downloads"><span className="section-icon"><i className="fas fa-download" aria-hidden="true" /></span><span><strong>Downloads</strong><small>Review visitor requests and contacts</small></span><i className="fas fa-arrow-right" aria-hidden="true" /></a>
+                    <a className="overview-link-card" href="/admin/homepage"><span className="section-icon"><i className="fas fa-pen-to-square" aria-hidden="true" /></span><span><strong>Landing page</strong><small>Manage public landing-page content</small></span><i className="fas fa-arrow-right" aria-hidden="true" /></a>
+                    <a className="overview-link-card" href="/admin/profile"><span className="section-icon"><i className="fas fa-id-badge" aria-hidden="true" /></span><span><strong>My profile</strong><small>Manage your admin details and image</small></span><i className="fas fa-arrow-right" aria-hidden="true" /></a>
                 </div>
             </section>
             <section className="admin-panel overview-document-cta" aria-label="Document management">
                 <div><p className="admin-eyebrow">DOCUMENT MANAGEMENT</p><h2>Manage published documents</h2><p className="panel-description">Add or manage CVs and certificates on the Documents page.</p>{documentsError && <p className="form-feedback error" role="status">{documentsError}</p>}</div>
-                <a className="admin-button primary" href="admin-documents.html"><i className="fas fa-file-arrow-up" aria-hidden="true" /> Add document</a>
+                <a className="admin-button primary" href="/admin/documents"><i className="fas fa-file-arrow-up" aria-hidden="true" /> Add document</a>
             </section>
         </>
     );
@@ -728,7 +728,7 @@ function DownloadsContent() {
                                     <span className="empty-icon"><i className="fas fa-inbox" aria-hidden="true" /></span>
                                     <h3>{downloads.length && search.trim() ? 'No matching enquiries' : 'No download enquiries yet'}</h3>
                                     <p>{downloads.length && search.trim() ? 'Try another name, email address, phone number or document.' : 'Visitor details and document requests are saved here by the backend.'}</p>
-                                    <a href="document.html" className="small-action">Open the visitor documents page <i className="fas fa-arrow-right" aria-hidden="true" /></a>
+                                    <a href="/documents" className="small-action">Open the visitor documents page <i className="fas fa-arrow-right" aria-hidden="true" /></a>
                                 </div>
                             )}
                         </div>
@@ -1054,7 +1054,7 @@ function HomepageContent() {
                         <p className="panel-description">Save your edits to review the complete landing page. Visitors will see the changes after you publish them.</p>
                         <div className="profile-image-upload">
                             <div className="profile-image-preview">{publishedProfileImage && <img src={publishedProfileImage} alt="Current profile image" />}</div>
-                            <div><h3>Profile image</h3><p className="panel-description">Change the image and choose who can see it from your profile settings.</p><a className="admin-button quiet" href="admin-profile.html"><i className="fas fa-sliders" aria-hidden="true" /> Manage image visibility</a></div>
+                            <div><h3>Profile image</h3><p className="panel-description">Change the image and choose who can see it from your profile settings.</p><a className="admin-button quiet" href="/admin/profile"><i className="fas fa-sliders" aria-hidden="true" /> Manage image visibility</a></div>
                         </div>
                         {loadingError && <p className="form-feedback error" role="status">{loadingError}</p>}
                         {feedback.message && !reviewing && <p className={`homepage-publish-toast${feedback.error ? ' error' : ''}`} role="status" aria-live="polite"><i className={`fas ${feedback.error ? 'fa-circle-exclamation' : 'fa-circle-check'}`} aria-hidden="true" /> {feedback.message}</p>}
@@ -1069,7 +1069,7 @@ function HomepageContent() {
                     </section>
                     {reviewing && <div className="homepage-review-overlay" role="dialog" aria-modal="true" aria-label="Review landing page">
                         <div className="homepage-review-toolbar"><div><strong>Review the complete landing page</strong><span>Empty fields are allowed. Changes go live only when you publish.</span>{feedback.message && <span className={feedback.error ? 'homepage-review-error' : ''} role="status" aria-live="polite">{feedback.message}</span>}</div><div className="form-actions"><button className="admin-button quiet" type="button" onClick={() => setReviewing(false)}>Back to editing</button><button className="admin-button primary" type="button" disabled={saving} onClick={publishHomepage}><i className="fas fa-check" aria-hidden="true" /> {saving ? 'Publishing…' : 'Publish to homepage'}</button></div></div>
-                        <iframe title="Homepage review" src={`../index.html?homepagePreview=1&lang=${editingLanguage}`} className="homepage-review-frame" />
+                        <iframe title="Homepage review" src={`/?homepagePreview=1&lang=${editingLanguage}`} className="homepage-review-frame" />
                     </div>}
             </>
     );
@@ -1618,7 +1618,7 @@ function AdminMessagesContent() {
         {notice && <p className="admin-messages-notice" role="status" aria-live="polite">{notice}</p>}
         {inboxMode === 'visitors' ? <section className={`admin-panel admin-messages-panel has-threads admin-platform-chat visitor-inbox-panel${mobilePlatformChatOpen ? ' is-chat-open' : ''}`}>
             <aside className="admin-message-threads admin-platform-threads" aria-label="Public contact conversations">
-              <button type="button" className="admin-inbox-previous-back" aria-label="Go to previous page" title="Go to previous page" onClick={() => returnToPreviousPage('admin.html#messages')}><i className="fas fa-arrow-left" /></button>
+              <button type="button" className="admin-inbox-previous-back" aria-label="Go to previous page" title="Go to previous page" onClick={() => returnToPreviousPage('/admin#messages')}><i className="fas fa-arrow-left" /></button>
               <nav className="admin-message-inbox-tabs" aria-label="Chat type">
                 <button type="button" className="active" aria-current="page"><i className="fas fa-users" /> Public{visitorUnreadCount > 0 && <span>{visitorUnreadCount}</span>}</button>
                 <button type="button" onClick={() => { setInboxMode('platform'); setReplyTarget(null); setEditingVisitorReply(null); setEditingMessage(null); setBody(''); setPendingFiles([]); setMobilePlatformChatOpen(false); setManagingPlatformMessages(false); }}><i className="fas fa-shield-halved" /> Super Admin</button>
@@ -1639,7 +1639,7 @@ function AdminMessagesContent() {
                 {!message.adminReply && <span className="admin-message-sender-avatar" title={message.senderName || message.senderEmail || 'Visitor'} aria-hidden="true">{getMessageInitials(message.senderName || message.senderEmail)}</span>}
                 <div className="admin-message-bubble-body">
                 <ExpandableMessageText key={`${message.id}-${message.body || ''}`}>{message.body}</ExpandableMessageText>
-                {message.reactions?.length > 0 && <div className="admin-message-reactions">{message.reactions.map((reaction) => <button key={reaction.emoji} type="button" className={reaction.reacted ? 'is-reacted' : ''} aria-label={`${reaction.emoji}, ${reaction.count} reactions`} onClick={() => toggleVisitorReaction(message, reaction.emoji)}>{reaction.emoji} {reaction.count}</button>)}</div>}
+                {message.reactions?.length > 0 && <div className="admin-message-reactions">{message.reactions.map((reaction) => { const display = getReactionDisplay(reaction.emoji); return <button key={reaction.emoji} type="button" className={reaction.reacted ? 'is-reacted' : ''} aria-label={`${display.label}, ${reaction.count} reactions`} onClick={() => toggleVisitorReaction(message, reaction.emoji)}><i className={display.icon} aria-hidden="true" /> {reaction.count}</button>; })}</div>}
                 <footer className="admin-message-meta"><time className="chat-message-time" dateTime={message.createdAt}>{formatChatTime(message.createdAt)}</time></footer>
                 <details className="admin-message-actions-menu" onToggle={handleAdminMessageMenuToggle}><summary aria-label="Message actions" title="Message actions"><i className="fas fa-chevron-down" /></summary><div role="menu" aria-label="Message actions">
                   <button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest('details').open = false; setEditingVisitorReply(null); setReplyTarget(message); setBody(''); messageBodyRef.current?.focus(); }}><i className="fas fa-reply" /> Reply</button>
@@ -1663,7 +1663,7 @@ function AdminMessagesContent() {
         </section> : <section className={`admin-panel admin-messages-panel has-threads admin-platform-chat${mobilePlatformChatOpen ? ' is-chat-open' : ''}`}>
             <aside className="admin-message-threads admin-platform-threads" aria-label="Administrator chat navigation">
               <div className="admin-platform-thread-toolbar">
-                <button type="button" className="admin-inbox-previous-back" aria-label="Go to previous page" title="Go to previous page" onClick={() => returnToPreviousPage('admin.html#messages')}><i className="fas fa-arrow-left" /></button>
+                <button type="button" className="admin-inbox-previous-back" aria-label="Go to previous page" title="Go to previous page" onClick={() => returnToPreviousPage('/admin#messages')}><i className="fas fa-arrow-left" /></button>
                 <nav className="admin-message-inbox-tabs" aria-label="Chat type">
                   <button type="button" onClick={() => { setInboxMode('visitors'); setReplyTarget(null); setEditingVisitorReply(null); setEditingMessage(null); setBody(''); setPendingFiles([]); setMobilePlatformChatOpen(false); setManagingPlatformMessages(false); }}><i className="fas fa-users" /> Public{visitorUnreadCount > 0 && <span>{visitorUnreadCount}</span>}</button>
                   <button type="button" className={inboxMode === 'platform' ? 'active' : ''} onClick={() => { setInboxMode('platform'); setReplyTarget(null); setEditingMessage(null); setBody(''); setPendingFiles([]); setMobilePlatformChatOpen(false); setManagingPlatformMessages(false); }}><i className="fas fa-shield-halved" /> Super Admin</button>
@@ -1688,7 +1688,7 @@ function AdminMessagesContent() {
                     {message.replyToMessageId && <small className="admin-message-reply-context"><i className="fas fa-reply" /> Reply to a message</small>}
                     {message.isHidden ? <><p className="admin-message-deleted"><i className="fas fa-trash-can" aria-hidden="true" /> You cleared this message.</p><button type="button" className="admin-message-remove-hidden" onClick={() => requestMessageDelete(message)}>Delete permanently from inbox</button></> : message.deletedAt ? <p className="admin-message-deleted">This message was cleared</p> : <>
                         {(message.isPinned || message.isStarred) && <small className="admin-message-flags">{message.isPinned && <span><i className="fas fa-thumbtack" /> Pinned</span>}{message.isStarred && <span><i className="fas fa-star" /> Starred</span>}</small>}
-                        <ExpandableMessageText key={`${message.id}-${message.body || ''}`}>{message.body}</ExpandableMessageText><MessageAttachmentList attachments={message.attachments} />{message.editedAt && <small className="admin-message-edited">Edited</small>}{message.reactions?.length > 0 && <div className="admin-message-reactions">{message.reactions.map((reaction) => <button key={reaction.emoji} type="button" className={reaction.reacted ? 'is-reacted' : ''} aria-label={`${reaction.emoji}, ${reaction.count} reactions`} onClick={() => togglePlatformMessageReaction(message.id, reaction.emoji)}>{reaction.emoji} {reaction.count}</button>)}</div>}{ownMessage && <footer className="admin-message-meta"><time className="chat-message-time" dateTime={message.createdAt}>{formatChatTime(message.createdAt)}</time><span className={`admin-message-receipt is-${getMessageReceiptState(message)}`} role="img" aria-label={getMessageReceiptState(message) === 'read' ? 'Read by recipient' : getMessageReceiptState(message) === 'delivered' ? 'Delivered to recipient' : 'Sent'} title={getMessageReceiptState(message) === 'read' ? 'Read by recipient' : getMessageReceiptState(message) === 'delivered' ? 'Delivered to recipient' : 'Sent'}><i className={`fas ${getMessageReceiptState(message) === 'sent' ? 'fa-check' : 'fa-check-double'}`} aria-hidden="true" /></span></footer>}
+                        <ExpandableMessageText key={`${message.id}-${message.body || ''}`}>{message.body}</ExpandableMessageText><MessageAttachmentList attachments={message.attachments} />{message.editedAt && <small className="admin-message-edited">Edited</small>}{message.reactions?.length > 0 && <div className="admin-message-reactions">{message.reactions.map((reaction) => { const display = getReactionDisplay(reaction.emoji); return <button key={reaction.emoji} type="button" className={reaction.reacted ? 'is-reacted' : ''} aria-label={`${display.label}, ${reaction.count} reactions`} onClick={() => togglePlatformMessageReaction(message.id, reaction.emoji)}><i className={display.icon} aria-hidden="true" /> {reaction.count}</button>; })}</div>}{ownMessage && <footer className="admin-message-meta"><time className="chat-message-time" dateTime={message.createdAt}>{formatChatTime(message.createdAt)}</time><span className={`admin-message-receipt is-${getMessageReceiptState(message)}`} role="img" aria-label={getMessageReceiptState(message) === 'read' ? 'Read by recipient' : getMessageReceiptState(message) === 'delivered' ? 'Delivered to recipient' : 'Sent'} title={getMessageReceiptState(message) === 'read' ? 'Read by recipient' : getMessageReceiptState(message) === 'delivered' ? 'Delivered to recipient' : 'Sent'}><i className={`fas ${getMessageReceiptState(message) === 'sent' ? 'fa-check' : 'fa-check-double'}`} aria-hidden="true" /></span></footer>}
                         {!managingPlatformMessages && <details className="admin-message-actions-menu" onToggle={handleAdminMessageMenuToggle}><summary aria-label="Message actions" title="Message actions"><i className="fas fa-chevron-down" /></summary><div role="menu">
                           <MessageReactionPicker onSelect={(emoji, event) => { event.currentTarget.closest('details').open = false; togglePlatformMessageReaction(message.id, emoji); }} />
                           <button type="button" role="menuitem" disabled={message.senderRole === 'platform_owner' && message.replyAllowed === false} onClick={(event) => { event.currentTarget.closest('details').open = false; setEditingMessage(null); setRecipientOwnerId(String(message.senderRole === 'platform_owner' ? message.senderId : recipientOwnerId)); setReplyTarget(message); setMobilePlatformChatOpen(true); messageBodyRef.current?.focus(); }}><i className="fas fa-reply" /> Reply</button>

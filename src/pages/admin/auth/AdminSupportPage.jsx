@@ -51,7 +51,7 @@ export default function AdminSupportPage() {
 
   return <main className="auth-page"><div className="auth-layout">
     <LanguageSelector />
-    <a className="auth-back-link" href="admin-login.html"><i className="fas fa-arrow-left" aria-hidden="true" /> Back to sign in</a>
+    <a className="auth-back-link" href="/admin/login"><i className="fas fa-arrow-left" aria-hidden="true" /> Back to sign in</a>
     <section className="auth-card admin-support-card" aria-labelledby="support-title">
       <div className="auth-heading"><span className="auth-icon"><i className="fas fa-life-ring" aria-hidden="true" /></span><p className="auth-eyebrow">ADMINISTRATOR HELP</p><h1 id="support-title">{guidance.title}</h1><p>Choose the path that matches your administrator account.</p></div>
       <form className="auth-form" onSubmit={submit}>

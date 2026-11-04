@@ -153,7 +153,7 @@ describe('apiRequest', () => {
         apiFetch.mockResolvedValue(jsonResponse({ error: 'Session expired.' }, { ok: false, status: 401 }));
         await expect(apiRequest('/homepage', { method: 'PUT', body: '{}' }))
             .rejects.toThrow('Your admin session has expired. Sign in again to continue.');
-        expect(window.location.replace).toHaveBeenCalledWith('admin-login.html');
+        expect(window.location.replace).toHaveBeenCalledWith('/admin/login');
         expect(notificationEvents()[0]).toEqual({ message: 'Session expired.', tone: 'error' });
     });
 

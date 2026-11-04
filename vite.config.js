@@ -1,128 +1,51 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
+import { getLegacyPagePath, getPageForPath, pageRegistry } from './src/app/pageRegistry.js';
 
 const frontendRoot = path.dirname(fileURLToPath(import.meta.url));
 const backendPort = Number(process.env.VITE_PORTFOLIO_API_PORT) || 5000;
-const pageTitles = {
-  'about.html': 'About | David KWIZERA Portfolio',
-  'background.html': 'Background | David KWIZERA Portfolio',
-  'skills.html': 'Skills | David KWIZERA Portfolio',
-  'hobbies.html': 'Hobbies | David KWIZERA Portfolio',
-  'document.html': 'Documents | David KWIZERA Portfolio',
-  'contact.html': 'Contact | David KWIZERA Portfolio',
-  'admin-login.html': 'Admin Login | Kade Portfolio',
-  'admin-support.html': 'Administrator Support | Kade Portfolio',
-  'admin.html': 'Portfolio Admin | Kade',
-  'admin-downloads.html': 'Downloads | Portfolio Admin',
-  'admin-homepage.html': 'Landing Page | Portfolio Admin',
-  'admin-documents.html': 'Documents | Portfolio Admin',
-  'admin-profile.html': 'My Profile | Portfolio Admin',
-  'admin-accounts.html': 'Admin Directory | Portfolio Admin',
-  'admin-messages.html': 'Messages | Portfolio Admin',
-  'chatroom-preview.html': 'Chatroom Preview | Portfolio Admin',
-  'platform-owner.html': 'Super Admin Portal | Portfolio Admin',
-  'admin-reset-password.html': 'Reset Admin Password | Portfolio Admin',
-  'platform-login.html': 'Sign In | Digital Status',
-  'platform-signup.html': 'Create Account | Digital Status',
-  'platform-verify-email.html': 'Verify Email | Digital Status',
-  'platform-forgot-password.html': 'Reset Password | Digital Status',
-  'platform-reset-password.html': 'Choose New Password | Digital Status',
-  'platform-account.html': 'Your Account | Digital Status',
-  'platform-dashboard.html': 'Portfolio Dashboard | Digital Status',
-  'platform-portfolio.html': 'Portfolio Editor | Digital Status',
-  'portfolio.html': 'Professional Portfolio | Digital Status'
-};
 
-function reactPageShell() {
+function reactSinglePageApp() {
   return {
-    name: 'portfolio-react-page-shells',
+    name: 'portfolio-react-single-page-app',
     configureServer(server) {
-      server.middlewares.use(async (request, response, next) => {
+      server.middlewares.use((request, response, next) => {
         const requestUrl = request.url || '/';
-        const pathname = new URL(requestUrl, 'http://localhost').pathname;
-        if (pathname === '/') {
-          response.statusCode = 302;
-          response.setHeader('Location', '/index.html');
-          response.end();
-          return;
-        }
-        if (/^\/u\/[a-z0-9-]+\/?$/i.test(pathname)) {
-          try {
-            const template = readFileSync(path.join(frontendRoot, 'index.html'), 'utf8');
-            const html = await server.transformIndexHtml(requestUrl, template);
-            response.statusCode = 200;
-            response.setHeader('Content-Type', 'text/html; charset=utf-8');
-            response.end(html);
-          } catch (error) {
-            next(error);
-          }
-          return;
-        }
-        const fileName = path.basename(new URL(requestUrl, 'http://localhost').pathname);
-        if (!pageTitles[fileName]) return next();
-
-        try {
-          const template = readFileSync(path.join(frontendRoot, 'index.html'), 'utf8');
-          const html = await server.transformIndexHtml(requestUrl, template);
-          response.statusCode = 200;
-          response.setHeader('Content-Type', 'text/html; charset=utf-8');
-          response.end(html);
-        } catch (error) {
-          next(error);
-        }
+        const requestUrlObject = new URL(requestUrl, 'http://localhost');
+        const legacyPath = getLegacyPagePath(requestUrlObject.pathname);
+        if (!legacyPath) return next();
+        response.statusCode = 302;
+        response.setHeader('Location', `${legacyPath}${requestUrlObject.search}`);
+        response.end();
       });
     },
     transformIndexHtml: {
       order: 'pre',
       handler(_html, context) {
-        const fileName = path.basename(context.filename || context.path || 'index.html');
-        const title = pageTitles[fileName];
-        if (!title) return undefined;
-        const admin = fileName.startsWith('admin') || fileName.startsWith('platform-') || fileName === 'chatroom-preview.html';
-        const noIndex = admin ? '<meta name="robots" content="noindex, nofollow">' : '';
-        const description = fileName === 'index.html'
-          ? "<meta name=\"description\" content=\"Explore David KWIZERA's portfolio, background, skills, projects and professional documents.\">"
-          : '';
-        return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    ${noIndex}
-    ${description}
-    <title>${title}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/app/main.jsx"></script>
-  </body>
-</html>`;
+        const pathname = new URL(context.path || '/', 'http://localhost').pathname;
+        const page = getPageForPath(pathname);
+        if (!page) return undefined;
+        return [
+          { tag: 'title', children: page.title, injectTo: 'head' },
+          ...(page.noIndex ? [{ tag: 'meta', attrs: { name: 'robots', content: 'noindex, nofollow' }, injectTo: 'head' }] : [])
+        ];
       }
     },
     closeBundle() {
       const outputDirectory = path.join(frontendRoot, 'dist');
-      const template = readFileSync(path.join(outputDirectory, 'index.html'), 'utf8');
-      for (const [fileName, title] of Object.entries(pageTitles)) {
-        const isAdmin = fileName.startsWith('admin') || fileName.startsWith('platform-') || fileName === 'chatroom-preview.html';
-        const html = template
-          .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
-          .replace('</head>', `${isAdmin ? '<meta name="robots" content="noindex, nofollow">' : ''}\n  </head>`);
-        const pageDirectory = path.join(outputDirectory, 'src');
-        mkdirSync(pageDirectory, { recursive: true });
-        writeFileSync(path.join(pageDirectory, fileName), html);
-        writeFileSync(path.join(outputDirectory, fileName), html);
-      }
+      const redirects = pageRegistry
+        .flatMap((page) => page.aliases.map((alias) => `${alias} ${page.path} 301!`))
+        .concat('/* /index.html 200')
+        .join('\n');
+      writeFileSync(path.join(outputDirectory, '_redirects'), `${redirects}\n`);
     }
   };
 }
 
 export default defineConfig({
-  plugins: [reactPageShell()],
+  plugins: [reactSinglePageApp()],
   test: {
     environment: 'jsdom',
     globals: true,

@@ -177,19 +177,21 @@ img {
    1. NAVIGATION BAR
    ========================================================= */
 nav {
-  position: sticky;
+  position: fixed;
   z-index: 50;
   top: 0;
+  right: 0;
+  left: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
   min-height: 72px;
   padding: 10px clamp(16px, 5vw, 64px);
-  border-bottom: 1px solid rgba(16, 105, 38, 0.45);
-  background: #15803d;
-  color: #ffffff;
-  box-shadow: 0 2px 14px rgba(21, 128, 61, 0.35);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 2px 14px rgba(15, 23, 42, 0.06);
   transition: background 0.25s ease;
 }
 
@@ -206,7 +208,7 @@ nav {
 }
 
 .nav-logo:hover .nav-brand-name {
-  color: #dbeafe;
+  color: #1d4ed8;
 }
 
 .nav-avatar {
@@ -258,7 +260,7 @@ nav {
   display: inline-flex;
   align-items: center;
   padding: 8px 12px;
-  color: #dbeafe;
+  color: #334155;
   font-size: 0.88rem;
   font-weight: 650;
   border-radius: 8px;
@@ -272,7 +274,7 @@ nav {
   left: 12px;
   height: 2px;
   border-radius: 2px;
-  background: #ffffff;
+  background: #1d4ed8;
   content: "";
   transform: scaleX(0);
   transform-origin: center;
@@ -281,8 +283,8 @@ nav {
 
 .nav-links a:hover,
 .nav-links a.active {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.15);
+  color: #1d4ed8;
+  background: rgba(29, 78, 216, 0.06);
 }
 
 .nav-links a:hover::after,
@@ -291,7 +293,7 @@ nav {
 }
 
 .nav-links a::after {
-  background: #ffffff;
+  background: #1d4ed8;
 }
 
 .nav-actions {
@@ -312,10 +314,10 @@ nav {
   align-items: center;
   justify-content: center;
   min-height: 40px;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: 10px;
-  background: var(--bg-soft);
-  color: var(--accent);
+  background: #f8fafc;
+  color: #1d4ed8;
   font-weight: 700;
   transition: all 0.2s ease;
 }
@@ -324,17 +326,17 @@ nav {
   gap: 8px;
   padding: 0 14px;
   font-size: 0.82rem;
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.4);
+  color: #0f172a;
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.12);
   box-shadow: none;
 }
 
 .nav-login:hover {
-  background: #ffffff;
-  color: #15803d;
-  border-color: #ffffff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: rgba(29, 78, 216, 0.2);
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.08);
 }
 
 .theme-toggle,
@@ -342,15 +344,15 @@ nav {
   width: 40px;
   padding: 0;
   font-size: 1.05rem;
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.4);
+  color: #0f172a;
+  background: #f8fafc;
+  border-color: rgba(15, 23, 42, 0.12);
 }
 
 .theme-toggle:hover,
 .hamburger:hover {
-  background: rgba(255, 255, 255, 0.28);
-  border-color: #ffffff;
+  background: #eef4ff;
+  border-color: rgba(29, 78, 216, 0.2);
 }
 
 .hamburger {

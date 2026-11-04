@@ -1,3 +1,5 @@
+import { isLocalApiMode, localApiFetch } from './localApi.js';
+
 // Accept the previous env name during migration, but prefer the documented
 // VITE_PORTFOLIO_API_BASE_URL setting used by production builds.
 const configuredApiUrl = import.meta.env.VITE_PORTFOLIO_API_BASE_URL
@@ -53,6 +55,8 @@ export function resolveApiAssetUrl(value) {
 }
 
 export async function apiFetch(path, options) {
+  if (isLocalApiMode) return localApiFetch(path, options);
+
   let lastError;
   const { allowBinary = false, ...fetchOptions } = options || {};
 

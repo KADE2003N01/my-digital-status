@@ -5,15 +5,16 @@ import LanguageSelector from '../../components/LanguageSelector.jsx';
 import { useLanguage } from '../../context/LanguageContext.jsx';
 import TimedNotification from '../../components/TimedNotification.jsx';
 import backgroundImageUrl from '../../assets/background image.jpeg';
+import { getPageForPath } from '../../app/pageRegistry.js';
 
 const NAV_ITEMS = [
-  ['Home', 'index.html', '../index.html'],
-  ['About', 'src/about.html', 'about.html'],
-  ['Background', 'src/background.html', 'background.html'],
-  ['Skills', 'src/skills.html', 'skills.html'],
-  ['Hobbies', 'src/hobbies.html', 'hobbies.html'],
-  ['Documents', 'src/document.html', 'document.html'],
-  ['Contact', 'src/contact.html', 'contact.html']
+  ['Home', '/'],
+  ['About', '/about'],
+  ['Background', '/background'],
+  ['Skills', '/skills'],
+  ['Hobbies', '/hobbies'],
+  ['Documents', '/documents'],
+  ['Contact', '/contact']
 ];
 
 function applyLocalizedText(content, localizedText, language) {
@@ -160,7 +161,6 @@ function Navigation({ homepage = false, homepageContent }) {
   const [image, clearImage] = useProfileImage(homepage);
   const [open, setOpen] = useState(false);
   const navRef = useRef(null);
-  const currentFilename = typeof window === 'undefined' ? '' : window.location.pathname.split('/').pop();
   const closeMenu = () => setOpen(false);
 
   useEffect(() => {
@@ -171,23 +171,19 @@ function Navigation({ homepage = false, homepageContent }) {
     return () => document.removeEventListener('click', closeWhenOutside);
   }, []);
 
-  const isInSrc = typeof window !== 'undefined' && window.location.pathname.includes('/src/');
-  const homeHref = isInSrc ? '../index.html' : 'index.html';
-  const loginHref = isInSrc ? 'admin-login.html' : 'src/admin-login.html';
+  const homeHref = '/';
+  const loginHref = '/admin/login';
 
   const items = homepage && Array.isArray(homepageContent?.navigation)
     ? homepageContent.navigation
-    : NAV_ITEMS.map(([label, rootHref, srcHref]) => ({
-        label,
-        href: isInSrc ? srcHref : rootHref
-      }));
+    : NAV_ITEMS.map(([label, href]) => ({ label, href }));
 
   const navLinks = items.map(({ label, href }) => {
     let active = false;
     try {
       const destination = new URL(href, window.location.href);
-      const destinationPath = destination.pathname.endsWith('/') ? `${destination.pathname}index.html` : destination.pathname;
-      const currentPath = window.location.pathname.endsWith('/') ? `${window.location.pathname}index.html` : window.location.pathname;
+      const destinationPath = getPageForPath(destination.pathname)?.path || destination.pathname;
+      const currentPath = getPageForPath(window.location.pathname)?.path || window.location.pathname;
       active = destination.origin === window.location.origin && destinationPath === currentPath;
     } catch {
       active = false;
@@ -271,16 +267,16 @@ function Footer({ homepage = false, content, localizedText, adminName: published
     servicesTitle: 'Services',
     socialTitle: 'Connect With Me',
     quickLinks: [
-      ['Home', homepage ? 'index.html' : '../index.html'],
-      ['About Me', homepage ? 'src/about.html' : 'about.html'],
-      ['Background', homepage ? 'src/background.html' : 'background.html'],
-      ['Skills', homepage ? 'src/skills.html' : 'skills.html']
+      ['Home', '/'],
+      ['About Me', '/about'],
+      ['Background', '/background'],
+      ['Skills', '/skills']
     ],
     services: [
-      ['Web Development', homepage ? '/src/skills.html' : 'skills.html'],
-      ['UI/UX Design', homepage ? '/src/skills.html' : 'skills.html'],
-      ['Consulting', homepage ? '/src/background.html' : 'background.html'],
-      ['Contact', homepage ? '/src/contact.html' : 'contact.html']
+      ['Web Development', '/skills'],
+      ['UI/UX Design', '/skills'],
+      ['Consulting', '/background'],
+      ['Contact', '/contact']
     ],
     socialLinks: [
       ['GitHub', 'https://github.com/KADE2003N01/kade-status', 'fab fa-github'],
@@ -437,37 +433,37 @@ const homepageFallback = {
     intro: "I'm David, a Computer Science student at the University of Rwanda. I spend most of my time building small web projects, breaking them, and figuring out how to make them better.",
     videoUrl: '', backgroundImageUrl: '',
     buttons: [
-      { label: 'Explore my documents', href: 'src/document.html', style: 'primary' },
-      { label: 'My background', href: 'src/background.html', style: 'outline' }
+      { label: 'Explore my documents', href: '/documents', style: 'primary' },
+      { label: 'My background', href: '/background', style: 'outline' }
     ],
-    contactText: 'Have a project or opportunity?', contactHref: 'src/contact.html', contactLabel: "Let's connect"
+    contactText: 'Have a project or opportunity?', contactHref: '/contact', contactLabel: "Let's connect"
   },
   introduction: {
     visible: true, eyebrow: 'A LITTLE ABOUT ME', titleFirst: 'Curious by nature.', titleSecond: 'Developer by choice.',
     body: "I'm David KWIZERA, a Computer Science student at the University of Rwanda. I enjoy turning ideas into clear, useful digital experiences and growing my skills through hands-on projects.",
-    linkLabel: 'Get to know me', linkHref: 'src/about.html'
+    linkLabel: 'Get to know me', linkHref: '/about'
   },
   highlights: {
     visible: true, eyebrow: 'WELCOME', title: "Thanks for stopping by",
     message: "This is where I keep my story, the things I'm learning, and the work I'm proud of so far. Have a look around.",
-    linkLabel: 'Get to know me', linkHref: 'src/skills.html'
+    linkLabel: 'Get to know me', linkHref: '/skills'
   },
   documents: {
     visible: true, eyebrow: 'DOCUMENTS & RESOURCES', title: 'Need my CV or certificates?',
     description: 'Browse and download the latest documents from the portfolio document center.',
-    buttonLabel: 'Visit document center', buttonHref: 'src/document.html'
+    buttonLabel: 'Visit document center', buttonHref: '/documents'
   },
   footer: {
     visible: true, brandName: 'David', tagline: 'Building elegant solutions through code',
     description: 'Computer Science student | Frontend Developer | Problem Solver',
     quickLinksTitle: 'Quick Links', servicesTitle: 'Services', socialTitle: 'Connect With Me',
     quickLinks: [
-      { label: 'Home', href: 'index.html' }, { label: 'About Me', href: 'src/about.html' },
-      { label: 'Background', href: 'src/background.html' }, { label: 'Skills', href: 'src/skills.html' }
+      { label: 'Home', href: '/' }, { label: 'About Me', href: '/about' },
+      { label: 'Background', href: '/background' }, { label: 'Skills', href: '/skills' }
     ],
     services: [
-      { label: 'Web Development', href: '/src/skills.html' }, { label: 'UI/UX Design', href: '/src/skills.html' },
-      { label: 'Consulting', href: '/src/background.html' }, { label: 'Contact', href: '/src/contact.html' }
+      { label: 'Web Development', href: '/skills' }, { label: 'UI/UX Design', href: '/skills' },
+      { label: 'Consulting', href: '/background' }, { label: 'Contact', href: '/contact' }
     ],
     socialLinks: [
       { label: 'GitHub', href: 'https://github.com/KADE2003N01/kade-status', icon: 'fab fa-github' },

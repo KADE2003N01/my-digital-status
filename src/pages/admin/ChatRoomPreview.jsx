@@ -57,7 +57,7 @@ function conversationMessagePreview(message) {
   if (!message) return 'Start a conversation';
   if (message.deletedAt) return 'Message deleted';
   if (message.body) return message.body;
-  return message.attachments?.length ? '📎 Attachment' : 'Start a conversation';
+  return message.attachments?.length ? 'Attachment' : 'Start a conversation';
 }
 
 export default function ChatRoomPreview() {
@@ -124,7 +124,7 @@ export default function ChatRoomPreview() {
     loadChat().catch((requestError) => {
       if (!active) return;
       if (/authentication required|session/i.test(requestError.message)) {
-        window.location.replace('admin-login.html?next=chatroom-preview.html');
+        window.location.replace('/admin/login?next=/admin/chatroom-preview');
         return;
       }
       setError(requestError.message);
@@ -263,13 +263,13 @@ export default function ChatRoomPreview() {
 
   return <main className="chat-preview-page">
     <header className="chat-preview-topbar">
-      <a className="chat-preview-brand" href="admin-messages.html" aria-label="Return to existing messages">
+      <a className="chat-preview-brand" href="/admin/messages" aria-label="Return to existing messages">
         <span className="chat-preview-brand-icon"><i className="fas fa-comments" /></span>
         <span><strong>Messages</strong><small>New chatroom preview</small></span>
       </a>
       <div className="chat-preview-top-actions">
         <span className="chat-preview-preview-tag"><i className="fas fa-flask" /> Preview only</span>
-        <a href="admin-messages.html"><i className="fas fa-arrow-left" /> Existing inbox</a>
+        <a href="/admin/messages"><i className="fas fa-arrow-left" /> Existing inbox</a>
       </div>
     </header>
 

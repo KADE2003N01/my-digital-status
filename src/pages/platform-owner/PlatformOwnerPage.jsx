@@ -21,7 +21,14 @@ const supportCategoryLabels = {
   sign_in: 'Sign-in problem',
   inactive_account: 'Inactive account',
   password_reset: 'Password reset',
-  other: 'Other account issue'
+  other: 'Other account issue',
+  platform_sign_in: 'FolioSpace sign-in issue',
+  platform_signup: 'FolioSpace signup issue',
+  platform_account_access: 'FolioSpace account access',
+  platform_inactive_account: 'Inactive FolioSpace account or space',
+  platform_subscription: 'FolioSpace payment or subscription',
+  platform_space_setup: 'FolioSpace space setup',
+  platform_other: 'Other FolioSpace system issue'
 };
 const standardAdminRoles = roles.filter(([role]) => role !== 'platform_owner');
 function updateRoleSelection(current, value, checked) {
@@ -129,7 +136,7 @@ export default function PlatformOwnerPage() {
       // Start collapsed when arriving from the admin workspace (or any page other
       // than the owner console itself), so the console opens wide on first paint.
       const referrer = document.referrer || '';
-      const fromAdminWorkspace = referrer.includes('admin.html') && !referrer.includes('platform-owner.html');
+      const fromAdminWorkspace = (referrer.includes('/admin') || referrer.includes('admin.html')) && !referrer.includes('platform-owner.html');
       if (fromAdminWorkspace) return true;
       return window.localStorage.getItem('kade-owner-rail') === 'collapsed';
     } catch { return false; }
@@ -176,7 +183,7 @@ export default function PlatformOwnerPage() {
     { href: '#recent-activity', icon: 'fa-clock-rotate-left', label: 'Recent activity' },
     { href: '#admin-directory', icon: 'fa-users-gear', label: 'Admin directory' },
     { href: '#support-requests', icon: 'fa-life-ring', label: 'Support inbox' },
-    { href: 'admin.html', icon: 'fa-briefcase', label: 'Portfolio workspace' },
+    { href: '/admin', icon: 'fa-briefcase', label: 'Portfolio workspace' },
     { href: '#messages', icon: 'fa-comment', label: 'Chat room' }
   ];
 
@@ -399,7 +406,7 @@ export default function PlatformOwnerPage() {
     (async () => {
       try {
         const response = await apiFetch('/auth/me', { credentials: 'include', headers: sessionToken() ? { Authorization: `Bearer ${sessionToken()}` } : undefined });
-        if (response.status === 401) { window.location.replace('admin-login.html?next=platform-owner.html'); return; }
+        if (response.status === 401) { window.location.replace('/admin/login?next=/platform/owner'); return; }
         const result = await response.json();
         if (!(result.user?.roles || [result.user?.role]).includes('platform_owner')) { setError('This console is available only to the super-admin account.'); setLoading(false); return; }
         if (current) setOwner(result.user);
@@ -563,7 +570,7 @@ export default function PlatformOwnerPage() {
       await apiFetch('/auth/logout', { method: 'POST', credentials: 'include', headers: sessionToken() ? { Authorization: `Bearer ${sessionToken()}` } : undefined });
     } finally {
       try { window.sessionStorage.removeItem('kade-admin-session-token'); } catch { /* Continue to the public homepage. */ }
-      window.location.replace('/index.html');
+      window.location.replace('/');
     }
   }
 
@@ -600,23 +607,22 @@ export default function PlatformOwnerPage() {
   }, [accountMenuOpen, positionAccountMenu]);
 
   if (loading) return <main className="owner-page owner-loading">Checking super-admin access…</main>;
-  if (!owner) return <main className="owner-page"><section className="owner-card owner-denied"><h1>Super-admin access required</h1><p>{error || 'Sign in with the super-admin account to continue.'}</p><a className="owner-button owner-button-primary" href="admin-login.html?next=platform-owner.html&force=1">Go to sign in</a></section></main>;
-
+  if (!owner) return <main className="owner-page"><section className="owner-card owner-denied"><h1>Super-admin access required</h1><p>{error || 'Sign in with the super-admin account to continue.'}</p><a className="owner-button owner-button-primary" href="/admin/login?next=/platform/owner&force=1">Go to sign in</a></section></main>;
   return <main className={`owner-page owner-console${messagesView ? ' owner-messages-page' : ''}${railCollapsed ? ' owner-rail-collapsed' : ''}`} data-theme={theme}>
     <aside className={`owner-sidebar${navOpen ? ' is-nav-open' : ''}`} aria-label="Platform owner navigation">
       <div className="owner-sidebar-top">
-        <a className="owner-brand" href="platform-owner.html"><span className="owner-brand-icon"><i className="fas fa-shield-halved" /></span><span>Platform Owner<small>Owner console</small></span></a>
+        <a className="owner-brand" href="/platform/owner"><span className="owner-brand-icon"><i className="fas fa-shield-halved" /></span><span>Platform Owner<small>Owner console</small></span></a>
         <button className="owner-rail-toggle" type="button" aria-pressed={railCollapsed} aria-label={railCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={railCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setRailCollapsed((collapsed) => !collapsed)}><i className={`fas ${railCollapsed ? 'fa-angles-right' : 'fa-angles-left'}`} /></button>
         <button className="owner-nav-toggle" type="button" aria-expanded={navOpen} aria-controls="owner-sidebar-nav" aria-label={navOpen ? 'Close navigation' : 'Open navigation'} title={navOpen ? 'Close navigation' : 'Open navigation'} onClick={() => { setNavOpen((open) => !open); if (navOpen) { setToolsOpen(false); setHelpOpen(false); } }}><i className={`fas ${navOpen ? 'fa-xmark' : 'fa-bars'}`} /></button>
       </div>
       {navOpen && <button className="owner-nav-backdrop" type="button" aria-label="Close navigation" onClick={() => setNavOpen(false)} />}
       <nav id="owner-sidebar-nav" className="owner-sidebar-nav">
         <div className="owner-mobile-nav-heading"><p className="owner-sidebar-label">WORKSPACE</p></div>
-        <a className={`owner-super-overview${!directoryView && !requestsView && !messagesView ? ' is-current' : ''}`} href="platform-owner.html" title="Overview" onClick={collapseOwnerNavigation}><i className="fas fa-circle-check" /><span>Overview</span></a>
+        <a className={`owner-super-overview${!directoryView && !requestsView && !messagesView ? ' is-current' : ''}`} href="/platform/owner" title="Overview" onClick={collapseOwnerNavigation}><i className="fas fa-circle-check" /><span>Overview</span></a>
         <a className={directoryView ? 'is-current' : ''} href={newAuditCount ? '#recent-activity' : '#admin-directory'} title={newAuditCount ? `Recent activity: ${newAuditCount} new changes` : 'Admin accounts'} onClick={() => { try { window.localStorage.setItem('kade-owner-audit-last-seen', String(Date.now())); } catch { /* Keep navigation available without storage. */ } setNewAuditCount(0); collapseOwnerNavigation(); }}><i className="fas fa-users-gear" /><span>Admin accounts</span>{(newAuditCount + (counts.pending || 0)) > 0 && <span className={`owner-sidebar-count owner-sidebar-alert${newAuditCount ? ' has-new' : ''}`} aria-label={`${newAuditCount} new activity changes and ${counts.pending || 0} pending administrators`}>{newAuditCount + (counts.pending || 0)}</span>}</a>
         <a className={requestsView ? 'is-current' : ''} href="#requests" title={`${inboxCounts.requests} open support requests`} onClick={collapseOwnerNavigation}><i className="fas fa-life-ring" /><span>Requests</span>{inboxCounts.requests > 0 && <span className="owner-sidebar-count owner-sidebar-alert" aria-label={`${inboxCounts.requests} open support requests`}>{inboxCounts.requests}</span>}</a>
         <a className={messagesView ? 'is-current' : ''} href="#messages" title={`${inboxCounts.messages} unread messages`} onClick={collapseOwnerNavigation}><i className="fas fa-comment" /><span>Chat</span>{inboxCounts.messages > 0 && <span className="owner-sidebar-unread-badge" aria-label={`${inboxCounts.messages} unread messages`}>{inboxCounts.messages > 99 ? '99+' : inboxCounts.messages}</span>}</a>
-        <a href="admin.html" title="Portfolio workspace" onClick={collapseOwnerNavigation}><i className="fas fa-briefcase" /><span>Portfolio workspace</span></a>
+        <a href="/admin" title="Portfolio workspace" onClick={collapseOwnerNavigation}><i className="fas fa-briefcase" /><span>Portfolio workspace</span></a>
         <div className={`owner-tools-menu owner-sidebar-tools${toolsOpen ? ' is-open' : ''}`}>
           <button className="owner-tools-button" type="button" aria-expanded={toolsOpen} aria-label={toolsOpen ? 'Close workspace tools' : 'Open workspace tools'} title="Workspace tools" onClick={() => { setToolsOpen((open) => !open); setHelpOpen(false); }}><i className={`fas ${toolsOpen ? 'fa-xmark' : 'fa-sliders'}`} aria-hidden="true" /><span>Tools</span></button>
           {toolsOpen && <div id="owner-tools-panel" className="owner-tools-panel" role="menu" aria-label="Workspace links">
