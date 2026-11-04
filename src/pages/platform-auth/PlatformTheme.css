@@ -1821,27 +1821,49 @@
 }
 
 .platform-auth-form input {
+  box-sizing: border-box;
   min-height: 46px;
   padding-top: 9px;
   padding-bottom: 9px;
 }
 
-.platform-auth-password-wrap .platform-auth-eye-button {
+.platform-auth-form {
+  width: 100%;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.platform-auth-input-wrap,
+.platform-auth-password-wrap {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+.platform-auth-password-wrap > .platform-auth-eye-button,
+.platform-auth-password-wrap > .platform-auth-eye-button:hover,
+.platform-auth-password-wrap > .platform-auth-eye-button:active,
+.platform-auth-password-wrap > .platform-auth-eye-button:focus-visible {
   position: absolute !important;
   top: 50% !important;
   right: 8px !important;
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   width: 32px;
+  min-width: 32px;
   min-height: 32px;
   height: 32px;
   margin: 0;
   padding: 0;
-  transform: translateY(-50%);
+  transform: translateY(-50%) !important;
   border: 0;
   border-radius: 8px;
   background: transparent;
   box-shadow: none;
   color: #4f6686;
+  transition: background-color 140ms ease, color 140ms ease;
   cursor: pointer;
 }
 
@@ -1857,16 +1879,15 @@
 }
 
 .platform-auth-password-wrap .platform-auth-eye-button:hover {
-  transform: translateY(-50%);
-  background: transparent;
+  background: #eaf2fc;
+  color: #254e89;
   box-shadow: none;
 }
 
 .platform-auth-password-wrap .platform-auth-eye-button,
 .platform-auth-password-wrap .platform-auth-eye-button:hover,
 .platform-auth-password-wrap .platform-auth-eye-button:active {
-  transform: translateY(-50%);
-  transition: none;
+  transform: translateY(-50%) !important;
 }
 
 .platform-auth-password-wrap .platform-auth-eye-button:focus-visible {

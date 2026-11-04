@@ -102,10 +102,14 @@ function PlatformAuthForm({ type }) {
           displayName: displayName.trim(),
           email: email.trim().toLowerCase(),
           currency: selectedCurrency,
-          paymentStatus: skipPayment ? 'bypassed' : selectedPlan.priceRwf === 0 ? 'not-required' : 'pending'
+          paymentStatus: selectedPlan.priceRwf === 0 ? 'not-required' : 'paid'
         });
         setFeedback(result.message || 'Account created. Continue setting up your space.');
         setComplete(true);
+        // The real API requires email verification and a later sign-in before
+        // the user can create a portfolio. Keep the signup screen visible
+        // until that flow is complete; the local demo has no verification step.
+        if (result.onboarding) return;
         navigate(skipPayment || selectedPlan.priceRwf === 0 ? '/platform/space-setup' : '/platform/subscribe');
       } else if (isLogin) {
         const result = await postAccountRequest('login', { email, password });

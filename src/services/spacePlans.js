@@ -1,5 +1,8 @@
 export const USD_RWF_ESTIMATE = 1450;
 export const SPACE_ONBOARDING_KEY = 'foliospace-onboarding-v1';
+// Keep checkout out of the onboarding path until a billing provider is ready.
+// Set this to true to restore the subscription step across environments.
+export const SUBSCRIPTION_FLOW_ENABLED = false;
 
 export const spacePlans = [
   {
@@ -70,7 +73,7 @@ export function readSpaceOnboarding() {
 }
 
 export function shouldBypassSubscriptionGate() {
-  if (typeof window === 'undefined') return false;
+  if (!SUBSCRIPTION_FLOW_ENABLED || typeof window === 'undefined') return true;
   const urlValue = new URLSearchParams(window.location.search).get('skipPayment');
   const localFlag = window.localStorage.getItem('foliospace-skip-payment') === 'true';
   return Boolean(import.meta.env.DEV && (urlValue === '1' || urlValue === 'true' || localFlag));
