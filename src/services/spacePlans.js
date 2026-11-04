@@ -4,6 +4,29 @@ export const SPACE_ONBOARDING_KEY = 'foliospace-onboarding-v1';
 // Set this to true to restore the subscription step across environments.
 export const SUBSCRIPTION_FLOW_ENABLED = false;
 
+// Section ids here match the backend `portfolio_sections.type` values so the
+// frontend gates and the server gates can never drift apart.
+const CORE_SECTIONS = ['hero', 'about', 'skills', 'contact'];
+const STANDARD_SECTIONS = [...CORE_SECTIONS, 'experience', 'education', 'projects'];
+const PROFESSIONAL_SECTIONS = [...STANDARD_SECTIONS, 'certificates', 'video_pitch'];
+
+const FEATURE_LABELS = {
+  maxSpaces: 'Portfolio spaces',
+  watermark: 'FolioSpace watermark',
+  customColors: 'Custom colors & accent',
+  visitorStats: 'Visitor statistics',
+  privateSections: 'Private sections',
+  subdomain: 'FolioSpace subdomain',
+  customDomain: 'Custom domain',
+  seoControls: 'SEO controls',
+  pdfExport: 'PDF export',
+  qrCode: 'QR code',
+  priorityPlacement: 'Priority directory placement',
+  branding: 'Full brand control'
+};
+
+export const planFeatures = FEATURE_LABELS;
+
 export const spacePlans = [
   {
     id: 'free',
@@ -15,7 +38,23 @@ export const spacePlans = [
       'Classic template',
       'About and skills sections',
       'Public FolioSpace address'
-    ]
+    ],
+    limits: {
+      maxSpaces: 1,
+      sections: CORE_SECTIONS,
+      templates: ['classic'],
+      watermark: true,
+      customColors: false,
+      visitorStats: false,
+      privateSections: false,
+      subdomain: false,
+      customDomain: false,
+      seoControls: false,
+      pdfExport: false,
+      qrCode: false,
+      priorityPlacement: false,
+      branding: false
+    }
   },
   {
     id: 'standard',
@@ -27,7 +66,23 @@ export const spacePlans = [
       'Studio template',
       'Expanded profile sections',
       'Recruiter access controls'
-    ]
+    ],
+    limits: {
+      maxSpaces: 3,
+      sections: STANDARD_SECTIONS,
+      templates: ['classic', 'studio'],
+      watermark: false,
+      customColors: true,
+      visitorStats: true,
+      privateSections: true,
+      subdomain: true,
+      customDomain: false,
+      seoControls: false,
+      pdfExport: false,
+      qrCode: false,
+      priorityPlacement: false,
+      branding: false
+    }
   },
   {
     id: 'professional',
@@ -39,12 +94,76 @@ export const spacePlans = [
       'Executive template',
       'Advanced portfolio sections',
       'Enhanced profile presentation'
-    ]
+    ],
+    limits: {
+      maxSpaces: Infinity,
+      sections: PROFESSIONAL_SECTIONS,
+      templates: ['classic', 'studio', 'executive'],
+      watermark: false,
+      customColors: true,
+      visitorStats: true,
+      privateSections: true,
+      subdomain: true,
+      customDomain: true,
+      seoControls: true,
+      pdfExport: true,
+      qrCode: true,
+      priorityPlacement: true,
+      branding: true
+    }
   }
 ];
 
 export function getSpacePlan(planId) {
   return spacePlans.find((plan) => plan.id === planId) || spacePlans[0];
+}
+
+// Does this plan allow the feature?
+export function planAllows(planId, feature) {
+  const plan = getSpacePlan(planId);
+  return Boolean(plan.limits?.[feature]);
+}
+
+// Which plans offer this feature? (used to render "Upgrade to unlock" chips)
+export function minimumPlanFor(feature) {
+  return spacePlans.find((plan) => Boolean(plan.limits?.[feature]))?.id ?? null;
+}
+
+// Is a section type available on this plan? (used by editor + server gates)
+export function planAllowsSection(planId, sectionType) {
+  return getSpacePlan(planId).limits.sections.includes(sectionType);
+}
+
+// Is a template available on this plan? (used by the template picker)
+export function planAllowsTemplate(planId, templateId) {
+  return getSpacePlan(planId).limits.templates.includes(templateId);
+}
+
+// How many more spaces can this plan create? (used for the space-creation gate)
+export function remainingSpaces(planId, ownedCount) {
+  const max = getSpacePlan(planId).limits.maxSpaces;
+  return Math.max(0, max - ownedCount);
+}
+
+// Human-readable list of everything a plan unlocks — used by the Privileges tab
+// and the upgrade modal so the UI never claims a feature the plan does not have.
+export function planPrivileges(planId) {
+  const plan = getSpacePlan(planId);
+  const { limits } = plan;
+  const privileges = [
+    `${limits.maxSpaces === Infinity ? 'Unlimited' : `Up to ${limits.maxSpaces}`} portfolio space${limits.maxSpaces === 1 ? '' : 's'}`,
+    `${plan.id === 'free' ? 'Classic' : plan.id === 'standard' ? 'Classic + Studio' : 'Classic + Studio + Executive'} templates`,
+    ...limits.sections.map((section) => `${section.charAt(0).toUpperCase()}${section.slice(1)} section`)
+  ];
+  for (const [feature, label] of Object.entries(FEATURE_LABELS)) {
+    if (feature === 'maxSpaces') continue;
+    if (feature === 'watermark') {
+      privileges.push(limits.watermark ? 'FolioSpace watermark on your public page' : 'No FolioSpace watermark');
+      continue;
+    }
+    if (limits[feature]) privileges.push(label);
+  }
+  return privileges;
 }
 
 export function formatSpacePrice(plan, currency = 'RWF') {

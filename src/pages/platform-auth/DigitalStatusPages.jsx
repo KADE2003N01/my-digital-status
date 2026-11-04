@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../../services/api.js';
 import WebsiteLogo from '../../components/WebsiteLogo.jsx';
-import { readSpaceOnboarding, shouldBypassSubscriptionGate } from '../../services/spacePlans.js';
+import { readSpaceOnboarding, shouldBypassSubscriptionGate, getSpacePlan, planAllows } from '../../services/spacePlans.js';
+import UpgradeModal from '../../components/UpgradeModal.jsx';
 import './DigitalStatusPages.css';
 
 async function requestJson(path, options = {}) {
@@ -147,6 +148,8 @@ export function PlatformSystemIssuesPage() {
 export function PlatformDashboardPage() {
   const [user, setUser] = useState(null);
   const [portfolios, setPortfolios] = useState([]);
+  const [planId, setPlanId] = useState('free');
+  const [upgradePrompt, setUpgradePrompt] = useState(null);
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
   const [message, setMessage] = useState('');
@@ -174,6 +177,7 @@ export function PlatformDashboardPage() {
           }
         }
         setUser(account.user);
+        setPlanId(account.user.subscriptionPlan || 'free');
         setPortfolios(result.portfolios);
       }
     }).catch((error) => {
@@ -191,6 +195,15 @@ export function PlatformDashboardPage() {
 
   async function createPortfolio(event) {
     event.preventDefault();
+    // Pattern B: stop the action and explain before the request is sent.
+    const limits = getSpacePlan(planId).limits;
+    if (portfolios.length >= limits.maxSpaces) {
+      setUpgradePrompt({
+        title: `You've reached the ${limits.maxSpaces}-space limit on the ${getSpacePlan(planId).name} plan`,
+        feature: planId === 'free' ? 'maxSpaces' : 'priorityPlacement'
+      });
+      return;
+    }
     setSaving(true);
     setMessage('');
     setIsError(false);
@@ -224,6 +237,15 @@ export function PlatformDashboardPage() {
           </div>
           <small>Use 3–48 lowercase letters, numbers, and single hyphens.</small>
           <button type="submit" disabled={saving}>{saving ? 'Creating…' : 'Create portfolio'}</button>
+          <small>{getSpacePlan(planId).limits.maxSpaces === Infinity
+            ? 'Unlimited portfolio spaces on your plan.'
+            : `${Math.max(0, getSpacePlan(planId).limits.maxSpaces - portfolios.length)} of ${getSpacePlan(planId).limits.maxSpaces} spaces left on your plan.`}</small>
+          <UpgradeModal
+            open={Boolean(upgradePrompt)}
+            title={upgradePrompt?.title}
+            feature={upgradePrompt?.feature}
+            onClose={() => setUpgradePrompt(null)}
+          />
         </form>
       </section>
       <section className="digital-status-card">
@@ -246,6 +268,8 @@ export function PlatformDashboardPage() {
 export function PlatformPortfolioEditorPage() {
   const portfolioId = new URLSearchParams(window.location.search).get('id');
   const [portfolio, setPortfolio] = useState(null);
+  const [planId, setPlanId] = useState('free');
+  const [upgradePrompt, setUpgradePrompt] = useState(null);
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
   const [about, setAbout] = useState('');
@@ -281,6 +305,8 @@ export function PlatformPortfolioEditorPage() {
           return;
         }
       }
+      setUser(account.user);
+      setPlanId(account.user.subscriptionPlan || 'free');
       const { portfolio: loaded } = result;
       setPortfolio(loaded);
       setSlug(loaded.slug);
@@ -360,8 +386,15 @@ export function PlatformPortfolioEditorPage() {
       <textarea id="editor-about" rows="5" maxLength={4000} value={about} onChange={(event) => setAbout(event.target.value)} />
       <label htmlFor="editor-skills">Skills (separated by commas)</label>
       <input id="editor-skills" value={skills} onChange={(event) => setSkills(event.target.value)} />
-      <label className="digital-status-checkbox"><input type="checkbox" checked={privateAbout} onChange={(event) => setPrivateAbout(event.target.checked)} /> Show About only after recruiter email verification</label>
-      <label className="digital-status-checkbox"><input type="checkbox" checked={privateSkills} onChange={(event) => setPrivateSkills(event.target.checked)} /> Show Skills only after recruiter email verification</label>
+      {planAllows(planId, 'privateSections') ? <>
+        <label className="digital-status-checkbox"><input type="checkbox" checked={privateAbout} onChange={(event) => setPrivateAbout(event.target.checked)} /> Show About only after recruiter email verification</label>
+        <label className="digital-status-checkbox"><input type="checkbox" checked={privateSkills} onChange={(event) => setPrivateSkills(event.target.checked)} /> Show Skills only after recruiter email verification</label>
+      </> : <button type="button" className="digital-status-secondary" onClick={() => setUpgradePrompt({
+        title: 'Private sections need the Standard plan',
+        feature: 'privateSections'
+      })}>
+        <i className="fa-solid fa-lock" aria-hidden="true" /> Private sections — upgrade to unlock
+      </button>}
       <div className="digital-status-actions">
         <button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
         <button type="button" className="digital-status-secondary" disabled={!portfolio} onClick={() => setPublished(portfolio?.status !== 'published')}>
@@ -371,6 +404,12 @@ export function PlatformPortfolioEditorPage() {
     </form>
     {portfolio?.status === 'published' && <p className="digital-status-public-link">Public page: <a href={publicUrl} target="_blank" rel="noreferrer">{window.location.origin}{publicUrl}</a></p>}
     <a className="digital-status-back-link" href="/platform/dashboard">Back to dashboard</a>
+    <UpgradeModal
+      open={Boolean(upgradePrompt)}
+      title={upgradePrompt?.title}
+      feature={upgradePrompt?.feature}
+      onClose={() => setUpgradePrompt(null)}
+    />
   </PageFrame>;
 }
 
@@ -501,6 +540,7 @@ export function PublicPortfolioPage() {
         </form>}
       </section>}
       <Status message={message} error={messageError} />
+      {portfolio.watermark && <p className="public-portfolio-watermark">Made with FolioSpace</p>}
       <footer>FolioSpace · Your Work. Your Space. Your Future.</footer>
     </article>
   </main>;

@@ -3,6 +3,7 @@ import { apiFetch } from '../../services/api.js';
 import TimedNotification from '../../components/TimedNotification.jsx';
 import { platformOwnerRequest } from './platformOwnerApi.js';
 import OwnerMessages from './OwnerMessages.jsx';
+import OwnerCustomersPanel from './OwnerCustomersPanel.jsx';
 import LogoutIcon from '../../components/LogoutIcon.jsx';
 import ExpandableCell from '../../components/ExpandableCell.jsx';
 import './PlatformOwnerPage.css';
@@ -81,6 +82,7 @@ export default function PlatformOwnerPage() {
   const [directoryView, setDirectoryView] = useState(() => ['#admin-directory', '#recent-activity'].includes(window.location.hash));
   const [requestsView, setRequestsView] = useState(() => window.location.hash === '#requests');
   const [messagesView, setMessagesView] = useState(() => window.location.hash === '#messages');
+  const [customersView, setCustomersView] = useState(() => window.location.hash === '#customers');
   const [owner, setOwner] = useState(null);
   const [admins, setAdmins] = useState([]);
   const [deletedAdmins, setDeletedAdmins] = useState([]);
@@ -157,6 +159,7 @@ export default function PlatformOwnerPage() {
       setDirectoryView(['#admin-directory', '#recent-activity'].includes(window.location.hash));
       setRequestsView(window.location.hash === '#requests');
       setMessagesView(window.location.hash === '#messages');
+      setCustomersView(window.location.hash === '#customers');
       setNavOpen(false);
       setToolsOpen(false);
       setHelpOpen(false);
@@ -183,6 +186,7 @@ export default function PlatformOwnerPage() {
     { href: '#recent-activity', icon: 'fa-clock-rotate-left', label: 'Recent activity' },
     { href: '#admin-directory', icon: 'fa-users-gear', label: 'Admin directory' },
     { href: '#support-requests', icon: 'fa-life-ring', label: 'Support inbox' },
+    { href: '#customers', icon: 'fa-id-card', label: 'Customers' },
     { href: '/admin', icon: 'fa-briefcase', label: 'Portfolio workspace' },
     { href: '#messages', icon: 'fa-comment', label: 'Chat room' }
   ];
@@ -654,7 +658,7 @@ export default function PlatformOwnerPage() {
       </nav>
     </aside>
     <div className="owner-main">
-    <section className="owner-welcome"><div className="owner-welcome-heading"><div><p className="owner-eyebrow">{requestsView ? 'SYSTEM SUPPORT' : messagesView ? 'CHAT ROOM' : directoryView ? 'ADMIN ACCESS' : 'CONTROL CENTER'}</p><h1>{requestsView ? 'Support requests' : messagesView ? 'Chat' : directoryView ? 'Manage administrator access' : `Welcome, ${owner.displayName}`}</h1><p>{requestsView ? 'Review sign-in, account activation, setup-link, and password-recovery issues reported by administrators.' : messagesView ? 'Chat with admins across both admin workspaces, including other super-admins.' : directoryView ? 'Invite administrators, set their roles, manage account access, and review recent security activity.' : 'This is your owner dashboard. Get a quick overview, then open Admin accounts to manage invitations, roles, password links, and activity.'}</p></div><div className="owner-top-corner">
+    <section className="owner-welcome"><div className="owner-welcome-heading"><div><p className="owner-eyebrow">{requestsView ? 'SYSTEM SUPPORT' : messagesView ? 'CHAT ROOM' : customersView ? 'CUSTOMER ACCOUNTS' : directoryView ? 'ADMIN ACCESS' : 'CONTROL CENTER'}</p><h1>{requestsView ? 'Support requests' : messagesView ? 'Chat' : customersView ? 'Customer accounts' : directoryView ? 'Manage administrator access' : `Welcome, ${owner.displayName}`}</h1><p>{requestsView ? 'Review sign-in, account activation, setup-link, and password-recovery issues reported by administrators.' : messagesView ? 'Chat with admins across both admin workspaces, including other super-admins.' : customersView ? 'Review FolioSpace customer accounts: suspend or activate access, set subscription plans behind the scenes, and delete accounts permanently.' : directoryView ? 'Invite administrators, set their roles, manage account access, and review recent security activity.' : 'This is your owner dashboard. Get a quick overview, then open Admin accounts to manage invitations, roles, password links, and activity.'}</p></div><div className="owner-top-corner">
         {directoryView && <details className="owner-invite" id="invite-admin"><summary><i className="fas fa-user-plus" /> Invite administrator</summary><form onSubmit={submitInvite}>
       <div className="owner-invite-heading"><div><strong>Invite an administrator</strong><small>Send a secure setup link after confirming the customer’s payment.</small></div><button className="owner-invite-close" type="button" aria-label="Close invitation form" title="Close" onClick={() => { document.getElementById('invite-admin')?.removeAttribute('open'); }}><i className="fas fa-xmark" /></button></div>
       <label>Full name<input required maxLength="120" value={form.displayName} onChange={e => setForm({ ...form, displayName: e.target.value })} /></label>
@@ -667,14 +671,14 @@ export default function PlatformOwnerPage() {
     {notice && <TimedNotification message={notice} tone="success" onClose={dismissNotice} />}
     {error && <TimedNotification message={error} tone="error" onClose={dismissError} />}
 
-    {!directoryView && !requestsView && !messagesView && <section className="owner-stat-grid" aria-label="Admin account totals">
+    {!directoryView && !requestsView && !messagesView && !customersView && <section className="owner-stat-grid" aria-label="Admin account totals">
       <article className="owner-stat"><span className="owner-stat-icon blue"><i className="fas fa-users" /></span><div><small>All admins</small><strong>{counts.total}</strong></div></article>
       <article className="owner-stat"><span className="owner-stat-icon green"><i className="fas fa-circle-check" /></span><div><small>Active</small><strong>{counts.active}</strong></div></article>
       <article className="owner-stat"><span className="owner-stat-icon amber"><i className="fas fa-hourglass-half" /></span><div><small>Pending invitations</small><strong>{counts.pending}</strong></div></article>
       <article className="owner-stat"><span className="owner-stat-icon gray"><i className="fas fa-user-slash" /></span><div><small>Inactive</small><strong>{counts.inactive}</strong></div></article>
     </section>}
 
-    {!directoryView && !requestsView && !messagesView && <section className="owner-card owner-guide"><div><p className="owner-eyebrow">HOW IT WORKS</p><h2>Manage rented administrator access</h2><p>Review a new administrator’s ticket and requested roles, then send their one-time setup link. The requester chooses the access they need; you can later manage that access or send account-recovery links.</p><a className="owner-button owner-button-primary" href="#admin-directory"><i className="fas fa-users-gear" /> Open Admin accounts</a></div><div className="owner-guide-steps"><article><span>01</span><div><strong>Review request</strong><small>Check the requester’s details and selected roles.</small></div></article><article><span>02</span><div><strong>Send setup link</strong><small>The new administrator creates their password.</small></div></article><article><span>03</span><div><strong>Manage access</strong><small>Review account status and security activity.</small></div></article></div></section>}
+    {!directoryView && !requestsView && !messagesView && !customersView && <section className="owner-card owner-guide"><div><p className="owner-eyebrow">HOW IT WORKS</p><h2>Manage rented administrator access</h2><p>Review a new administrator’s ticket and requested roles, then send their one-time setup link. The requester chooses the access they need; you can later manage that access or send account-recovery links.</p><a className="owner-button owner-button-primary" href="#admin-directory"><i className="fas fa-users-gear" /> Open Admin accounts</a></div><div className="owner-guide-steps"><article><span>01</span><div><strong>Review request</strong><small>Check the requester’s details and selected roles.</small></div></article><article><span>02</span><div><strong>Send setup link</strong><small>The new administrator creates their password.</small></div></article><article><span>03</span><div><strong>Manage access</strong><small>Review account status and security activity.</small></div></article></div></section>}
 
     {requestsView && <section className="owner-card owner-requests" id="support-requests">
       <header className="owner-requests-heading"><div><p className="owner-eyebrow">ADMIN SUPPORT INBOX</p><h2>{requestStatusView === 'open' ? 'Open requests' : 'Resolved request history'}</h2><p>Sending or resending a link leaves the request open. Invitation and setup requests resolve only after setup is complete and the account is active. Password-reset and sign-in requests resolve after the related action succeeds.</p></div><span className="owner-audit-count">{inboxCounts.requests} open</span></header>
@@ -699,6 +703,8 @@ export default function PlatformOwnerPage() {
     </section>}
 
     {messagesView && <div id="owner-messages" className="owner-messages-view"><OwnerMessages onMessagesChanged={refreshInbox} ownerId={owner?.id} ownerEmail={owner?.email} /></div>}
+
+    {customersView && <OwnerCustomersPanel />}
 
     {directoryView && <>
     <section className="owner-stat-grid owner-directory-stats" aria-label="Admin account totals">

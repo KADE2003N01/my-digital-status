@@ -113,6 +113,8 @@
 .owner-invite label span { display: inline; color: #94a0b2; font-weight: 500; }
 .owner-invite input, .owner-invite select, .owner-filters input, .owner-filters select { width: 100%; min-height: 40px; padding: 9px 11px; border: 1px solid #dce4ef; border-radius: 8px; outline: none; background: #fff; color: var(--owner-ink); font-size: 13px; }
 .owner-invite input:focus, .owner-invite select:focus, .owner-filters input:focus, .owner-filters select:focus, .owner-role-select:focus { border-color: #91a9f7; box-shadow: 0 0 0 3px #315ce817; }
+.owner-form-hint.is-error { color: #b91c1c; }
+
 .owner-form-hint { margin: 0; color: var(--owner-muted); font-size: 11px; line-height: 1.45; }
 .owner-button { display: inline-flex; justify-content: center; align-items: center; gap: 7px; min-height: 39px; padding: 9px 13px; border: 0; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; }
 .owner-button-primary { background: var(--owner-blue); color: #fff; }

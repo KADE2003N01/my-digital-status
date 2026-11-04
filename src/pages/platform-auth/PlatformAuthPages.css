@@ -358,7 +358,1203 @@
   background: #34445f;
 }
 
+.platform-account-page {
+  --page-bg: linear-gradient(180deg, #f5f9ff 0%, #edf4ff 100%);
+  --sidebar-bg: #0a1e25;
+  --topbar-bg: #ffffff;
+  --topbar-text: #18304a;
+  --panel-bg: rgba(255, 255, 255, 0.86);
+  --panel-border: rgba(148, 163, 184, 0.2);
+  --soft-card: #f7faff;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--page-bg);
+  color: #17243b;
+  margin: 0;
+  padding: 0;
+}
+
+.platform-account-page.is-soft-blue {
+  --page-bg: linear-gradient(180deg, #edf5ff 0%, #f7fbff 100%);
+  --sidebar-bg: #0b1f39;
+  --topbar-bg: #ffffff;
+  --topbar-text: #18304a;
+  --panel-bg: rgba(255, 255, 255, 0.9);
+  --soft-card: #f2f8ff;
+}
+
+.platform-account-page.is-warm {
+  --page-bg: linear-gradient(180deg, #fff8f0 0%, #fffefb 100%);
+  --sidebar-bg: #2a1d1a;
+  --topbar-bg: #ffffff;
+  --topbar-text: #18304a;
+  --panel-bg: rgba(255, 255, 255, 0.9);
+  --soft-card: #fffaf6;
+}
+
+.platform-account-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.platform-account-sidebar {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 220px;
+  width: 220px;
+  min-height: 0;
+  padding: 14px 12px 14px;
+  border-right: 1px solid rgba(148, 163, 184, 0.18);
+  background: var(--sidebar-bg);
+  color: #e2ebff;
+  overflow: hidden;
+}
+
+.platform-account-nav-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(143, 198, 255, 0.35) transparent;
+}
+
+.platform-account-nav-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.platform-account-nav-scroll::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background: rgba(143, 198, 255, 0.3);
+}
+
+.platform-account-header-logo {
+  display: inline-grid;
+}
+
+.platform-account-header-logo .website-logo-name {
+  color: #102d62;
+  font-size: 1.4rem;
+}
+
+.platform-account-header-brand img,
+.platform-account-header-logo img {
+  width: clamp(110px, 11vw, 150px);
+  height: auto;
+}
+
+.platform-account-nav {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  position: static;
+  z-index: auto;
+  top: auto;
+  right: auto;
+  left: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+}
+
+.platform-account-nav button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 38px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: #dfeafe;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.platform-account-nav button:hover {
+  background: rgba(201, 225, 255, 0.06);
+  border-color: rgba(143, 198, 255, 0.12);
+}
+
+.platform-account-nav button.is-active {
+  background: rgba(179, 218, 255, 0.18);
+  border-color: rgba(143, 198, 255, 0.42);
+  color: #f0f9ff;
+}
+
+.platform-account-nav button:focus-visible {
+  outline: 2px solid #8ec5ff;
+  outline-offset: 2px;
+}
+
+.platform-account-nav i {
+  width: 16px;
+  font-size: 0.82em;
+  color: #8ec5ff;
+  text-align: center;
+}
+
+.platform-account-nav-links {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.platform-account-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  color: #c9d9f2;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.platform-account-nav-link:hover {
+  background: rgba(201, 225, 255, 0.08);
+  color: #f0f9ff;
+}
+
+.platform-account-nav-link i {
+  width: 16px;
+  font-size: 0.8em;
+  color: #7fb8f5;
+  text-align: center;
+}
+
+.platform-account-logout {
+  margin-top: auto;
+  min-height: 48px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #3d8ef5 0%, #2d73d6 100%);
+  color: #edf5ff;
+  font: inherit;
+  font-size: 1.02rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.platform-account-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+  background: var(--page-bg);
+  overflow: hidden;
+  margin: 0;
+  filter: brightness(var(--page-brightness, 1));
+}
+
+.platform-account-topbar {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 30;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 68px;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  background: #ffffff;
+  color: var(--topbar-text);
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+  margin: 0;
+}
+
+.platform-account-topbar-title {
+  display: none;
+  margin-right: auto;
+  color: var(--topbar-text);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.platform-account-topbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.platform-account-header-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 8px;
+}
+
+.platform-account-header-tools-mobile {
+  display: none;
+}
+
+.platform-account-topbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.platform-account-header-brand {
+  display: inline-flex;
+  align-items: center;
+  margin-right: auto;
+  color: #102d62;
+  text-decoration: none;
+}
+
+.platform-account-header-brand .website-logo-tagline {
+  display: none;
+}
+
+.platform-account-header-brand img {
+  width: 120px;
+  height: auto;
+}
+
+.platform-account-toast {
+  position: fixed;
+  right: 24px;
+  top: 88px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: min(320px, calc(100vw - 32px));
+  max-width: 360px;
+  padding: 12px 14px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-left: 4px solid #2f6fe1;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 20px 30px rgba(15, 23, 42, 0.12);
+  color: #12233f;
+}
+
+.platform-account-toast.is-error {
+  border-left-color: #df4a4a;
+}
+
+.platform-account-toast span {
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.platform-account-toast button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #485a75;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.platform-account-save-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 150px;
+  min-height: 42px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #3c8dff 0%, #2f6fe1 100%);
+  color: #fff;
+  font: inherit;
+  font-size: 0.96rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.platform-account-content-wrap {
+  flex: 1;
+  min-height: 0;
+  padding: 20px 24px 36px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #b9c6da transparent;
+}
+
+.platform-account-content-wrap::-webkit-scrollbar {
+  width: 8px;
+}
+
+.platform-account-content-wrap::-webkit-scrollbar-thumb {
+  border-radius: 8px;
+  background: #c3cfe2;
+}
+
+.platform-account-kicker,
+.platform-account-section-label {
+  margin: 0 0 8px;
+  color: #3c6eea;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.platform-account-topbar h1 {
+  margin: 0;
+  color: #17243b;
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+  letter-spacing: -0.05em;
+}
+
+.platform-account-dashboard-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 8px 16px;
+  border: 1px solid rgba(49, 92, 232, 0.22);
+  border-radius: 999px;
+  color: #1b3558;
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-decoration: none;
+  background: #f5f9ff;
+}
+
+.platform-account-dashboard-link:hover {
+  background: rgba(143, 198, 255, 0.12);
+}
+
+.platform-account-save-button-mobile {
+  display: none;
+}
+
+.platform-account-user-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.platform-account-user-meta strong {
+  color: #edf5ff;
+  font-size: 0.94rem;
+}
+
+.platform-account-intro {
+  margin: 0 0 18px;
+  color: #52657d;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.platform-account-verification-box {
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 18px 16px;
+  border: 1px solid rgba(49, 92, 232, 0.14);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f3f7ff 0%, #f9fbff 100%);
+}
+
+.platform-account-verification-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #1f4ec0;
+  font-size: 1rem;
+}
+
+.platform-account-verification-box p {
+  margin: 0;
+  color: #49617f;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.platform-account-verification-box p span {
+  font-weight: 700;
+  color: #203d73;
+}
+
+.platform-account-code-label {
+  margin-top: 4px;
+  color: #2a3f5d;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.platform-account-inline-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid rgba(49, 92, 232, 0.22);
+  border-radius: 10px;
+  background: #edf3ff;
+  color: #2349b8;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.platform-account-inline-action.is-secondary {
+  background: #ffffff;
+  border-color: rgba(148, 163, 184, 0.4);
+  color: #28466e;
+}
+
+.platform-account-settings-grid,
+.platform-account-support-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.platform-account-setting-card,
+.platform-account-support-card {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-height: 140px;
+  padding: 18px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 14px;
+  background: #f9fbff;
+}
+
+.platform-account-setting-card {
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+}
+
+.platform-account-language-selector {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.platform-account-language-label {
+  display: block;
+  color: #596d8d;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.platform-account-language-selector select {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.42);
+  border-radius: 10px;
+  background: #fff;
+  color: #17243b;
+  font: inherit;
+}
+
+.platform-account-theme-card {
+  grid-column: 1 / -1;
+}
+
+.platform-account-brightness {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.platform-account-brightness-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #596d8d;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.platform-account-brightness-label i {
+  color: #e2a815;
+}
+
+.platform-account-brightness input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+  height: 6px;
+  margin: 0;
+  accent-color: #315ce8;
+  cursor: pointer;
+}
+
+.platform-account-brightness-value {
+  min-width: 38px;
+  color: #2349b8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.platform-account-theme-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.platform-account-theme-picker button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+  background: #fff;
+  color: #203d73;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.platform-account-theme-picker button.is-selected {
+  border-color: rgba(49, 92, 232, 0.48);
+  background: rgba(49, 92, 232, 0.08);
+  color: #1d4ec8;
+}
+
+.platform-account-setting-card i,
+.platform-account-support-card i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: rgba(49, 92, 232, 0.1);
+  color: #1f56d1;
+}
+
+.platform-account-setting-card strong,
+.platform-account-support-card strong {
+  display: block;
+  color: #1a2941;
+}
+
+.platform-account-setting-card span,
+.platform-account-support-card span {
+  color: #60718e;
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.platform-account-logout-wrap {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.platform-account-user-card {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 4px;
+  min-width: 0;
+}
+
+.platform-account-user-meta {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.platform-account-user-meta strong {
+  color: #f2f7ff;
+  font-size: 0.72rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.platform-account-user-meta span {
+  color: rgba(226, 235, 255, 0.66);
+  font-size: 0.64rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.platform-account-sidebar .platform-account-avatar {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  font-size: 0.7rem;
+}
+
+.platform-account-logout-trigger {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #ffb4b4;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  overflow: visible;
+  text-align: left;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.platform-account-logout-trigger i {
+  width: 16px;
+  font-size: 0.82em;
+  text-align: center;
+}
+
+.platform-account-logout-trigger::before {
+  content: 'Sign out';
+}
+
+.platform-account-logout-trigger:hover,
+.platform-account-logout-trigger:focus-visible {
+  background: rgba(239, 68, 68, 0.14);
+  color: #fff4f4;
+}
+
+.platform-account-logout-trigger::after {
+  content: 'You want to Exit ?';
+  position: absolute;
+  left: 50%;
+  top: -12px;
+  transform: translate(-50%, -100%) translateY(6px);
+  opacity: 0;
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: #d93a3a;
+  color: #fff;
+  font-size: 0.72rem;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  box-shadow: 0 8px 18px rgba(217, 58, 58, 0.25);
+}
+
+.platform-account-logout-trigger:hover::after,
+.platform-account-logout-trigger:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, -100%) translateY(0);
+}
+
+@media (hover: none) {
+  .platform-account-logout-trigger::after {
+    display: none;
+  }
+}
+
+.platform-account-logout-popover {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 12px);
+  width: min(240px, calc(100vw - 32px));
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 16px;
+  background: rgba(13, 22, 31, 0.98);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.24);
+  color: #edf5ff;
+}
+
+.platform-account-logout-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.platform-account-logout-preview div:last-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.platform-account-logout-preview strong {
+  color: #f5faff;
+  font-size: 0.86rem;
+}
+
+.platform-account-logout-preview span {
+  color: rgba(233, 240, 255, 0.7);
+  font-size: 0.7rem;
+  word-break: break-word;
+}
+
+.platform-account-avatar.is-large {
+  width: 38px;
+  height: 38px;
+  font-size: 0.88rem;
+}
+
+.platform-account-logout-confirm {
+  width: 100%;
+  min-height: 42px;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.platform-account-mobile-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(143, 198, 255, 0.4);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #eef8ff;
+  cursor: pointer;
+}
+
+.platform-account-page.is-sidebar-open .platform-account-sidebar {
+  transform: translateX(0);
+}
+
+.platform-account-page.is-sidebar-open .platform-account-mobile-toggle {
+  background: rgba(143, 198, 255, 0.08);
+}
+
+.platform-account-panel {
+  width: min(100%, 1200px);
+  margin-bottom: 24px;
+  padding: clamp(18px, 2vw, 24px);
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  background: var(--panel-bg);
+  box-shadow: none;
+}
+
+.platform-account-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.platform-account-panel-header h2 {
+  margin: 0;
+  color: #18253d;
+  font-size: clamp(1.2rem, 2vw, 1.7rem);
+}
+
+.platform-account-plan-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(49, 92, 232, 0.1);
+  color: #1748c6;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.platform-account-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.platform-account-stat-card {
+  display: grid;
+  gap: 6px;
+  padding: 18px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 14px;
+  background: #f7faff;
+}
+
+.platform-account-stat-card span,
+.platform-account-stat-card small {
+  color: #5c6d8d;
+}
+
+.platform-account-stat-card strong {
+  color: #17243b;
+  font-size: 1.05rem;
+}
+
+.platform-account-form {
+  display: grid;
+  gap: 18px;
+}
+
+.platform-account-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.platform-account-form-grid.single-column {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.platform-account-form label {
+  display: grid;
+  gap: 8px;
+  color: #293f5d;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.platform-account-form input,
+.platform-account-form textarea {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.42);
+  border-radius: 11px;
+  background: #fbfdff;
+  color: #17243b;
+  font: inherit;
+}
+
+.platform-account-form textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.platform-account-actions {
+  display: flex;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.platform-account-actions .primary,
+.platform-account-plan-card button {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #315ce8 0%, #1748c6 100%);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.platform-account-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px;
+}
+
+.platform-account-plan-card {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 18px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 16px;
+  background: #f9fbff;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.platform-account-plan-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 30px rgba(23, 72, 198, 0.12);
+  border-color: rgba(49, 92, 232, 0.45);
+}
+
+.platform-account-plan-card.is-selected {
+  border-color: rgba(49, 92, 232, 0.7);
+  background: rgba(229, 237, 255, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(49, 92, 232, 0.16);
+}
+
+.platform-account-plan-card.is-blue {
+  background: linear-gradient(180deg, rgba(232, 240, 255, 0.85) 0%, rgba(249, 251, 255, 1) 100%);
+}
+
+.platform-account-plan-card.is-gold {
+  background: linear-gradient(180deg, rgba(255, 246, 211, 0.9) 0%, rgba(255, 255, 255, 1) 100%);
+}
+
+.platform-account-plan-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.platform-account-plan-header p {
+  margin: 0 0 4px;
+  color: #18253d;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.platform-account-plan-header strong {
+  color: #203d73;
+}
+
+.platform-account-plan-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(49, 92, 232, 0.14);
+  color: #1748c6;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.platform-account-plan-card small {
+  color: #596d8d;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.platform-account-plan-card ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.platform-account-plan-card li {
+  display: flex;
+  gap: 8px;
+  color: #374d6d;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.platform-account-plan-card li i {
+  color: #1c9e68;
+}
+
+.platform-account-plan-card button {
+  width: 100%;
+  margin-top: 4px;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.platform-account-plan-card button:hover {
+  filter: brightness(1.08);
+}
+
+.platform-account-plan-card button:active {
+  transform: translateY(1px);
+}
+
+.platform-account-benefits {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.platform-account-benefit-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  background: #f7faff;
+  color: #203d73;
+  font-weight: 600;
+}
+
+.platform-account-benefit-item i {
+  color: #1c9e68;
+}
+
+@media (max-width: 960px) {
+  .platform-account-page {
+    position: relative;
+    display: block;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .platform-account-body {
+    display: block;
+    height: calc(100dvh - 70px);
+    overflow: hidden;
+  }
+
+  .platform-account-main {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .platform-account-content-wrap {
+    overflow-y: auto;
+  }
+
+  .platform-account-sidebar {
+    position: fixed;
+    top: 70px;
+    left: 0;
+    bottom: 0;
+    z-index: 25;
+    width: min(300px, 80vw);
+    transform: translateX(-108%);
+    transition: transform 0.2s ease;
+    border-right: 1px solid rgba(148, 163, 184, 0.26);
+    border-bottom: 0;
+    box-shadow: 18px 0 30px rgba(15, 23, 42, 0.12);
+  }
+
+  .platform-account-header-brand {
+    display: inline-flex;
+    margin-right: auto;
+  }
+
+  .platform-account-mobile-toggle {
+    display: inline-flex;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--topbar-text);
+  }
+
+  .platform-account-topbar {
+    justify-content: space-between;
+    padding: 10px 12px;
+  }
+
+  .platform-account-topbar-title {
+    display: none;
+    margin-right: 0;
+  }
+
+  .platform-account-dashboard-link {
+    display: none;
+  }
+
+  .platform-account-header-brand {
+    display: inline-flex;
+    margin-right: auto;
+  }
+
+  .platform-account-header-tools-mobile {
+    display: inline-flex;
+  }
+
+  .platform-account-save-button-mobile {
+    display: inline-flex;
+    min-width: 126px;
+  }
+
+  .platform-account-settings-grid,
+  .platform-account-support-grid,
+  .platform-account-plan-grid,
+  .platform-account-summary-grid,
+  .platform-account-benefits,
+  .platform-account-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 560px) {
+  .platform-account-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 12px;
+  }
+
+  .platform-account-topbar-title {
+    display: none;
+  }
+
+  .platform-account-topbar-actions {
+    margin-left: 0;
+    width: auto;
+  }
+
+  .platform-account-header-tools-mobile {
+    display: flex;
+    margin-left: 0;
+  }
+
+  .platform-account-header-brand {
+    display: inline-flex;
+    margin-right: auto;
+  }
+
+  .platform-account-header-brand img {
+    width: 104px;
+  }
+
+  .platform-account-mobile-toggle {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    color: var(--topbar-text);
+  }
+
+  .platform-account-panel-header {
+    display: grid;
+    align-items: start;
+  }
+
+  .platform-account-page {
+    min-height: 100%;
+  }
+
   .platform-auth-page {
     padding: 0 12px 28px;
   }
