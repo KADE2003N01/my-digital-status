@@ -38,4 +38,25 @@ describe('frontend local API', () => {
     expect(documents.body.documents).toHaveLength(2);
     expect(file.headers.get('content-type')).toBe('application/pdf');
   });
+
+  it('distinguishes administrator sign-in from customer sign-in by the stored account role', async () => {
+    const notAdmin = await responseJson('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'member@example.com', password: 'Password123!' })
+    });
+    const admin = await responseJson('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'demo@example.com', password: 'demo-password' })
+    });
+    const verifiedAdmin = await responseJson('/auth/me');
+    const customer = await responseJson('/platform-auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'member@example.com', password: 'Password123!' })
+    });
+
+    expect(notAdmin.response.status).toBe(401);
+    expect(admin.body.success).toBe(true);
+    expect(verifiedAdmin.body.user.roles).toContain('platform_owner');
+    expect(customer.body.user.role).toBe('customer');
+  });
 });

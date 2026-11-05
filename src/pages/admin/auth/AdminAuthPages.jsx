@@ -16,11 +16,13 @@ const allowedDestinations = new Map([
   ['/platform/owner', '/platform/owner'], ['platform-owner.html', '/platform/owner']
 ]);
 
-function loginDestination(requested) {
-  // Sign-in always opens the regular workspace first. Super-admins can enter
-  // the owner console explicitly from its sidebar link after signing in.
-  const destination = allowedDestinations.get(requested) || '/admin';
-  return destination === '/platform/owner' ? '/admin' : destination;
+function loginDestination(requested, user) {
+  const roles = Array.isArray(user?.roles) ? user.roles : [];
+  const isPlatformOwner = roles.includes('platform_owner') || user?.role === 'platform_owner';
+  const defaultDestination = isPlatformOwner ? '/platform/owner' : '/admin';
+  const destination = allowedDestinations.get(requested);
+  if (!destination || destination === '/platform/owner' && !isPlatformOwner) return defaultDestination;
+  return destination;
 }
 
 function AuthFeedback({ children, error = false, className = '' }) {
@@ -62,7 +64,8 @@ export function AdminLoginPage() {
       headers: getStoredSessionToken() ? { Authorization: `Bearer ${getStoredSessionToken()}` } : undefined
     }).then(async response => {
       if (response.ok && current) {
-        window.location.replace(loginDestination(requestedDestination)); return;
+      const result = await response.json().catch(() => ({}));
+      window.location.replace(loginDestination(requestedDestination, result.user)); return;
       }
       if (response.status === 401) storeSessionToken('');
       else if (current) {
@@ -97,7 +100,7 @@ export function AdminLoginPage() {
         storeSessionToken('');
         throw new Error('Your browser could not verify the new session. Allow cookies for this site and try again.');
       }
-      window.location.replace(loginDestination(requestedDestination));
+      window.location.replace(loginDestination(requestedDestination, verified.user));
     } catch (error) {
       if (error.code === 'ADMIN_NOT_FOUND' || error.code === 'ADMIN_SETUP_REQUIRED') {
         setAccountMissing(true);

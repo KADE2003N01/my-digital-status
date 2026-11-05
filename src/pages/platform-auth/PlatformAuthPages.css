@@ -366,7 +366,6 @@
   --panel-bg: rgba(255, 255, 255, 0.86);
   --panel-border: rgba(148, 163, 184, 0.2);
   --soft-card: #f7faff;
-  --sidebar-width: 82px;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -378,10 +377,6 @@
   color: #17243b;
   margin: 0;
   padding: 0;
-}
-
-.platform-account-page:not(.is-sidebar-collapsed) {
-  --sidebar-width: 220px;
 }
 
 .platform-account-page.is-soft-blue {
@@ -403,12 +398,15 @@
 }
 
 .platform-account-body {
-  flex: 1;
+  flex: 1 1 auto;
   display: flex;
   min-height: 0;
+  overflow: hidden;
 }
 
 .platform-account-sidebar {
+  position: relative;
+  z-index: 20;
   display: flex;
   flex-direction: column;
   flex: 0 0 220px;
@@ -418,7 +416,7 @@
   border-right: 1px solid rgba(148, 163, 184, 0.18);
   background: var(--sidebar-bg);
   color: #e2ebff;
-  overflow: hidden;
+  overflow: visible;
   transition: flex-basis 0.2s ease, width 0.2s ease, padding 0.2s ease;
 }
 
@@ -433,12 +431,13 @@
 .platform-account-sidebar-toggle {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  align-self: flex-end;
-  width: 30px;
-  height: 30px;
+  justify-content: flex-start;
+  align-self: stretch;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
   margin-bottom: 8px;
-  border: 1px solid rgba(143, 198, 255, 0.22);
+  border: 1px solid transparent;
   border-radius: 9px;
   background: rgba(255, 255, 255, 0.04);
   color: #edf6ff;
@@ -450,7 +449,12 @@
 
 .platform-account-sidebar-toggle:hover {
   background: rgba(143, 198, 255, 0.12);
-  transform: translateY(-1px);
+}
+
+.platform-account-sidebar.is-collapsed .platform-account-sidebar-toggle {
+  justify-content: center;
+  padding-left: 8px;
+  padding-right: 8px;
 }
 
 .platform-account-sidebar.is-collapsed .platform-account-nav button,
@@ -620,9 +624,14 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  height: 100%;
+  min-height: 0;
+  padding-bottom: 0;
   background: var(--page-bg);
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #b9c6da transparent;
   margin: 0;
   filter: brightness(var(--page-brightness, 1));
 }
@@ -756,22 +765,9 @@
 }
 
 .platform-account-content-wrap {
-  flex: 1;
-  min-height: 0;
-  padding: 20px 24px 78px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: #b9c6da transparent;
-}
-
-.platform-account-content-wrap::-webkit-scrollbar {
-  width: 8px;
-}
-
-.platform-account-content-wrap::-webkit-scrollbar-thumb {
-  border-radius: 8px;
-  background: #c3cfe2;
+  flex: 0 0 auto;
+  min-height: 100%;
+  padding: 20px 24px 80px;
 }
 
 .platform-account-kicker,
@@ -1095,8 +1091,8 @@
   padding: 6px 10px;
   border: 0;
   border-radius: 10px;
-  background: transparent;
-  color: #ffb4b4;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #ffffff;
   font: inherit;
   font-size: 0.78rem;
   font-weight: 700;
@@ -1107,39 +1103,44 @@
 }
 
 .platform-account-page-footer {
-  position: fixed;
-  right: 18px;
-  bottom: 0;
-  left: calc(var(--sidebar-width) + 0px);
-  z-index: 20;
+  position: static;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  justify-content: center;
+  width: 100%;
   min-height: 54px;
-  padding: 8px 18px 8px 18px;
-  border-radius: 0;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 8px clamp(6px, 1.2vw, 18px);
   background: rgba(6, 24, 39, 0.96);
   color: #edf5ff;
-  font-size: clamp(0.9rem, 1vw, 1.08rem);
+  font-size: clamp(0.62rem, 1vw, 1.08rem);
   font-weight: 700;
   box-shadow: none;
-  margin-bottom: 0;
 }
 
 .platform-account-page-footer-copy {
   display: flex;
-  flex: 1;
+  flex: 0 1 auto;
+  min-width: 0;
   align-items: center;
   justify-content: center;
+  text-align: center;
 }
 
 .platform-account-page-footer-copy span {
   opacity: 1;
   color: #edf5ff;
+  overflow-wrap: anywhere;
+  
 }
 
 .platform-account-footer-link-button {
+  position: fixed;
+  right: 18px;
+  bottom: 8px;
+  z-index: 45;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1179,45 +1180,15 @@
 
 .platform-account-logout-trigger:hover,
 .platform-account-logout-trigger:focus-visible {
-  background: rgba(239, 68, 68, 0.14);
-  color: #fff4f4;
-}
-
-.platform-account-logout-trigger::after {
-  content: 'You want to Exit ?';
-  position: absolute;
-  left: 50%;
-  top: -12px;
-  transform: translate(-50%, -100%) translateY(6px);
-  opacity: 0;
-  padding: 8px 10px;
-  border-radius: 9px;
-  background: #d93a3a;
-  color: #fff;
-  font-size: 0.72rem;
-  white-space: nowrap;
-  pointer-events: none;
-  transition: opacity 0.18s ease, transform 0.18s ease;
-  box-shadow: 0 8px 18px rgba(217, 58, 58, 0.25);
-}
-
-.platform-account-logout-trigger:hover::after,
-.platform-account-logout-trigger:focus-visible::after {
-  opacity: 1;
-  transform: translate(-50%, -100%) translateY(0);
-}
-
-@media (hover: none) {
-  .platform-account-logout-trigger::after {
-    display: none;
-  }
+  filter: brightness(1.08);
 }
 
 .platform-account-logout-popover {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 12px);
-  width: min(240px, calc(100vw - 32px));
+  position: fixed;
+  left: 10px;
+  bottom: 88px;
+  z-index: 40;
+  width: min(260px, calc(100vw - 32px));
   padding: 14px;
   border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: 16px;
@@ -1268,27 +1239,6 @@
   font: inherit;
   font-weight: 800;
   cursor: pointer;
-}
-
-.platform-account-mobile-toggle {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border: 1px solid rgba(143, 198, 255, 0.4);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.05);
-  color: #eef8ff;
-  cursor: pointer;
-}
-
-.platform-account-page.is-sidebar-open .platform-account-sidebar {
-  transform: translateX(0);
-}
-
-.platform-account-page.is-sidebar-open .platform-account-mobile-toggle {
-  background: rgba(143, 198, 255, 0.08);
 }
 
 .platform-account-panel {
@@ -1562,54 +1512,9 @@
 }
 
 @media (max-width: 960px) {
-  .platform-account-page {
-    position: relative;
-    display: block;
-    height: 100dvh;
-    overflow: hidden;
-  }
-
-  .platform-account-body {
-    display: block;
-    height: calc(100dvh - 70px);
-    overflow: hidden;
-  }
-
-  .platform-account-main {
-    height: 100%;
-    overflow: hidden;
-  }
-
-  .platform-account-content-wrap {
-    overflow-y: auto;
-  }
-
-  .platform-account-sidebar {
-    position: fixed;
-    top: 70px;
-    left: 0;
-    bottom: 0;
-    z-index: 25;
-    width: min(300px, 80vw);
-    transform: translateX(-108%);
-    transition: transform 0.2s ease;
-    border-right: 1px solid rgba(148, 163, 184, 0.26);
-    border-bottom: 0;
-    box-shadow: 18px 0 30px rgba(15, 23, 42, 0.12);
-  }
-
   .platform-account-header-brand {
     display: inline-flex;
     margin-right: auto;
-  }
-
-  .platform-account-mobile-toggle {
-    display: inline-flex;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
-    color: var(--topbar-text);
   }
 
   .platform-account-topbar {
@@ -1682,20 +1587,13 @@
     width: 104px;
   }
 
-  .platform-account-mobile-toggle {
-    width: 34px;
-    height: 34px;
-    padding: 0;
-    color: var(--topbar-text);
-  }
-
   .platform-account-panel-header {
     display: grid;
     align-items: start;
   }
 
   .platform-account-page {
-    min-height: 100%;
+    min-height: 100dvh;
   }
 
   .platform-auth-page {
@@ -1728,6 +1626,33 @@
 .platform-account-publish-settings ul { display: grid; gap: 8px; padding: 0; list-style: none; }
 .platform-account-publish-settings li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--panel-border, #dce5f0); }
 .platform-account-overview-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.platform-account-next-step { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 18px; border: 1px solid rgba(49, 92, 232, 0.18); border-radius: 14px; background: linear-gradient(120deg, #f1f6ff, #fff); }
+.platform-account-next-step-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: rgba(49, 92, 232, 0.1); color: #2454cf; }
+.platform-account-next-step-copy { min-width: 0; }
+.platform-account-next-step-copy .platform-account-section-label { margin-bottom: 4px; }
+.platform-account-next-step-copy h3, .platform-account-overview-subheading h3 { margin: 0; color: #1a2941; font-size: 1rem; }
+.platform-account-next-step-copy > p:last-child { margin: 4px 0 0; color: #60718e; font-size: 0.84rem; line-height: 1.5; }
+.platform-account-next-step > .platform-account-inline-action { white-space: nowrap; text-decoration: none; }
+.platform-account-journey { display: grid; gap: 12px; padding: 18px; border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 14px; background: rgba(255, 255, 255, 0.72); }
+.platform-account-journey-intro { margin: -4px 0 0; color: #60718e; font-size: 0.86rem; line-height: 1.55; }
+.platform-account-journey-steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.platform-account-journey-steps li { display: grid; grid-template-columns: 34px minmax(0, 1fr); align-content: start; gap: 10px; min-width: 0; padding: 14px; border: 1px solid rgba(148, 163, 184, 0.16); border-radius: 12px; background: #fff; }
+.platform-account-journey-number { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: #edf3ff; color: #315ce8; font-size: 0.72rem; font-weight: 850; }
+.platform-account-journey-steps h4 { margin: 2px 0 5px; color: #203d73; font-size: 0.9rem; }
+.platform-account-journey-steps p { margin: 0; color: #60718e; font-size: 0.8rem; line-height: 1.55; }
+.platform-account-overview-portfolios { display: grid; gap: 10px; padding: 18px; border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 14px; background: rgba(255, 255, 255, 0.72); }
+.platform-account-overview-subheading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.platform-account-overview-subheading .platform-account-section-label { margin-bottom: 3px; }
+.platform-account-overview-subheading > a { color: #315ce8; font-size: 0.82rem; font-weight: 750; text-decoration: none; }
+.platform-account-overview-subheading > a:hover { text-decoration: underline; }
+.platform-account-overview-portfolios ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.platform-account-overview-portfolios li { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 10px 12px; border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 11px; background: #fff; }
+.platform-account-overview-portfolio-icon { display: grid; place-items: center; width: 30px; height: 30px; flex: 0 0 30px; border-radius: 9px; background: #edf3ff; color: #315ce8; }
+.platform-account-overview-portfolio-name { flex: 1; min-width: 0; overflow: hidden; color: #203d73; font-size: 0.88rem; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+.platform-account-overview-portfolio-status { padding: 4px 8px; border-radius: 999px; background: #f1f4f8; color: #60718e; font-size: 0.68rem; font-weight: 750; }
+.platform-account-overview-portfolio-status.is-published { background: #e8f7ef; color: #14834d; }
+.platform-account-overview-portfolios li > a { color: #315ce8; font-size: 0.78rem; font-weight: 750; text-decoration: none; }
+.platform-account-overview-more { margin: 0; color: #60718e; font-size: 0.78rem; }
 .platform-customer-chat-history { display: flex; flex-direction: column; gap: 12px; max-height: 440px; overflow: auto; padding: 16px; border: 1px solid #dce5f0; border-radius: 14px; background: #f8fbff; }
 .platform-customer-chat-message { max-width: min(80%, 640px); padding: 12px 14px; border-radius: 14px; background: #fff; box-shadow: 0 2px 8px #102a4310; }
 .platform-customer-chat-message.is-customer { align-self: flex-end; background: #e8f1ff; }
@@ -1910,5 +1835,15 @@
   .platform-gallery-upload { align-items: flex-start; flex-direction: column; }
   .platform-gallery-upload input { margin-left: 0; max-width: 100%; }
   .platform-account-publish-settings li { align-items: flex-start; flex-direction: column; }
+  .platform-account-next-step { grid-template-columns: 38px minmax(0, 1fr); align-items: start; gap: 10px; padding: 14px; }
+  .platform-account-next-step-icon { width: 36px; height: 36px; }
+  .platform-account-next-step > .platform-account-inline-action { grid-column: 2; justify-self: start; }
+  .platform-account-journey { padding: 14px; }
+  .platform-account-journey-steps { grid-template-columns: 1fr; }
+  .platform-account-journey-steps li { padding: 12px; }
+  .platform-account-overview-portfolios { padding: 14px; }
+  .platform-account-overview-portfolios li { gap: 7px; padding: 9px; }
+  .platform-account-overview-portfolio-name { font-size: 0.8rem; }
+  .platform-account-overview-portfolio-status { padding: 3px 6px; font-size: 0.62rem; }
   .platform-account-progress-ring { width: min(170px, 72vw); }
 }

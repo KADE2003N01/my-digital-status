@@ -342,7 +342,12 @@ function handlePublicPortfolio(path, method, body) {
 function handleAdminApi(path, method, body) {
   if (path === '/health') return jsonResponse({ status: 'ok', mode: 'frontend-demo' });
   if (path === '/auth/me') return jsonResponse({ success: true, user: getAdminUser() });
-  if (path === '/auth/login') return jsonResponse({ success: true, user: getAdminUser(), sessionToken: 'frontend-demo-session' });
+  if (path === '/auth/login') {
+    const admin = data.admins.find((item) => item.email?.toLowerCase() === body.email?.trim().toLowerCase());
+    if (!admin) return jsonResponse({ error: 'Administrator account not found.', code: 'ADMIN_NOT_FOUND' }, 401);
+    data.admin = admin;
+    return jsonResponse({ success: true, user: getAdminUser(), sessionToken: 'frontend-demo-session' });
+  }
   if (path === '/auth/logout') return jsonResponse({ success: true, message: 'Signed out of the local demo.' });
   if (path.startsWith('/auth/password-reset/')) return jsonResponse({ success: true, message: 'Password action completed in the local demo.' });
   if (path === '/auth/admin-users' || path.startsWith('/auth/admin-users?')) return jsonResponse({ admins: data.admins });

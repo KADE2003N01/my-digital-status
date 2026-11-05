@@ -5,6 +5,7 @@ import PlatformFooter from '../../components/PlatformFooter.jsx';
 import WebsiteLogo from '../../components/WebsiteLogo.jsx';
 import WhatsAppContact from '../../components/WhatsAppContact.jsx';
 import { formatSpacePrice, getSpacePlan, planPrivileges, readSpaceOnboarding, saveSpaceOnboarding, shouldBypassSubscriptionGate } from '../../services/spacePlans.js';
+import { getStoredSessionToken, storeSessionToken } from '../../services/adminSession.js';
 import UpgradeModal from '../../components/UpgradeModal.jsx';
 import './PlatformAuthPages.css';
 
@@ -81,7 +82,7 @@ function PlatformAuthForm({ type }) {
   const isReset = type === 'reset';
   const config = {
     signup: ['Create your account', 'Build your portfolio profile and choose the space that fits your next step.'],
-    login: ['Sign in', 'Welcome back. Continue building your public portfolio and manage your work.'],
+    login: ['Sign in', 'One sign-in for your portfolio account or administrator workspace.'],
     forgot: ['Reset your password', 'Enter the email linked to your account and we will send a secure reset link.'],
     reset: ['Choose a new password', 'Create a strong password and confirm your account details before continuing.']
   }[type];
@@ -131,8 +132,40 @@ function PlatformAuthForm({ type }) {
         if (result.onboarding) return;
         navigate(skipPayment || selectedPlan.priceRwf === 0 ? '/platform/space-setup' : '/platform/subscribe');
       } else if (isLogin) {
-        const result = await postAccountRequest('login', { email, password });
-        // Signed-in users always land on their account page.
+        const adminResponse = await apiFetch('/auth/login', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email.trim(), password })
+        });
+        const adminResult = await adminResponse.json().catch(() => ({}));
+
+        if (adminResponse.ok) {
+          storeSessionToken(adminResult.sessionToken || '');
+          const sessionToken = getStoredSessionToken();
+          const verificationResponse = await apiFetch('/auth/me', {
+            credentials: 'include',
+            headers: sessionToken ? { Authorization: `Bearer ${sessionToken}` } : undefined
+          });
+          const verification = await verificationResponse.json().catch(() => ({}));
+          if (!verificationResponse.ok || !verification.success
+            || verification.user?.email?.toLowerCase() !== email.trim().toLowerCase()) {
+            storeSessionToken('');
+            throw new Error('Your administrator session could not be verified. Allow cookies for this site and try again.');
+          }
+
+          const roles = Array.isArray(verification.user.roles) ? verification.user.roles : [];
+          const role = verification.user.role;
+          window.location.replace(roles.includes('platform_owner') || role === 'platform_owner' ? '/platform/owner' : '/admin');
+          return;
+        }
+
+        storeSessionToken('');
+        if (adminResult.code !== 'ADMIN_NOT_FOUND' && adminResult.code !== 'ADMIN_SETUP_REQUIRED') {
+          throw new Error(adminResult.error || 'Could not sign in. Check your details and try again.');
+        }
+
+        await postAccountRequest('login', { email, password });
         navigate('/platform/account');
       } else if (isForgot) {
         const result = await postAccountRequest('forgot-password', { email });
@@ -350,7 +383,6 @@ export function PlatformAccountPage() {
   const [savingPassword, setSavingPassword] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('free');
   const [activeTab, setActiveTab] = useState('overview');
-  const [showSidebarMobile, setShowSidebarMobile] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [themeMode, setThemeMode] = useState('light');
   const [brightness, setBrightness] = useState(100);
@@ -469,9 +501,31 @@ export function PlatformAccountPage() {
 
   const activePlan = subscriptionPlans.find((plan) => plan.id === selectedPlan) || subscriptionPlans[0];
   const subscriptionSummary = getSubscriptionSummary(selectedPlan, user?.subscriptionEndsAt);
+  const publishedPortfolios = portfolioSummary.filter((portfolio) => portfolio.status === 'published');
+  const draftPortfolios = portfolioSummary.filter((portfolio) => portfolio.status !== 'published');
   const publicPortfolioUrl = portfolioSummary.find((portfolio) => portfolio.slug)
     ? `/u/${encodeURIComponent(portfolioSummary.find((portfolio) => portfolio.slug)?.slug)}`
     : '/platform/portfolio';
+  const nextStep = portfolioSummary.length === 0
+    ? {
+      title: 'Create your first portfolio',
+      description: 'Add your professional story, choose what to show, and prepare a public page you can share.',
+      action: 'Start building',
+      href: '/platform/portfolio'
+    }
+    : draftPortfolios.length > 0
+      ? {
+        title: `Finish ${draftPortfolios.length === 1 ? 'your draft' : `${draftPortfolios.length} drafts`}`,
+        description: 'Review your portfolio details and publish when you are ready for people to see your work.',
+        action: 'Continue editing',
+        href: '/platform/portfolio'
+      }
+      : {
+        title: 'Your portfolio is live',
+        description: 'Your published work is ready to share. Review your public page and keep your profile up to date.',
+        action: 'View public portfolio',
+        href: publishedPortfolios[0]?.slug ? `/u/${encodeURIComponent(publishedPortfolios[0].slug)}` : '/platform/portfolio'
+      };
   const greeting = getAccountGreeting(user?.displayName || 'there');
   const [upgradePrompt, setUpgradePrompt] = useState(null);
 
@@ -970,7 +1024,7 @@ export function PlatformAccountPage() {
             </div>
             <span className="platform-account-plan-badge">{activePlan.name} plan</span>
           </div>
-          <p className="platform-account-intro">Your account dashboard gives you a quick snapshot of your current plan, portfolio readiness, and the tools available to manage your space.</p>
+          <p className="platform-account-intro">Welcome back, {user?.displayName || 'there'}. Here is a clear snapshot of your account, portfolio activity, and the next step for building your professional presence.</p>
           <div className="platform-account-overview-layout">
             <div className="platform-account-overview-main">
               <div className="platform-account-summary-grid">
@@ -981,15 +1035,88 @@ export function PlatformAccountPage() {
                 </div>
                 <div className="platform-account-stat-card">
                   <span>Portfolio status</span>
-                  <strong>{portfolioSummary.length ? `${portfolioSummary.length} space${portfolioSummary.length === 1 ? '' : 's'}` : 'Not set up yet'}</strong>
-                  <small>{portfolioSummary.some((portfolio) => portfolio.status === 'published') ? 'At least one portfolio is published' : 'Create and publish a portfolio from your dashboard'}</small>
+                  <strong>{publishedPortfolios.length} published · {draftPortfolios.length} draft{draftPortfolios.length === 1 ? '' : 's'}</strong>
+                  <small>{portfolioSummary.length ? `${portfolioSummary.length} portfolio space${portfolioSummary.length === 1 ? '' : 's'} in your account` : 'Your first portfolio is ready to be created'}</small>
                 </div>
                 <div className="platform-account-stat-card">
-                  <span>Access</span>
-                  <strong>Portfolio editor</strong>
-                  <small>Manage your profile and public pages</small>
+                  <span>Professional profile</span>
+                  <strong>{profileForm.role || 'Add your role'}</strong>
+                  <small>{profileForm.location || 'Add a location to complete your profile'}</small>
                 </div>
               </div>
+              <section className="platform-account-next-step" aria-labelledby="account-next-step-title">
+                <div className="platform-account-next-step-icon" aria-hidden="true"><i className="fa-solid fa-arrow-trend-up" /></div>
+                <div className="platform-account-next-step-copy">
+                  <p className="platform-account-section-label">Your next step</p>
+                  <h3 id="account-next-step-title">{nextStep.title}</h3>
+                  <p>{nextStep.description}</p>
+                </div>
+                <a className="platform-account-inline-action" href={nextStep.href}>{nextStep.action}</a>
+              </section>
+              <section className="platform-account-journey" aria-labelledby="account-journey-title">
+                <div className="platform-account-overview-subheading">
+                  <div>
+                    <p className="platform-account-section-label">Make the most of your account</p>
+                    <h3 id="account-journey-title">How your FolioSpace works</h3>
+                  </div>
+                </div>
+                <p className="platform-account-journey-intro">Once your plan is active, use this account to build your professional presence, manage what visitors see, and keep track of your subscription.</p>
+                <ol className="platform-account-journey-steps">
+                  <li>
+                    <span className="platform-account-journey-number">01</span>
+                    <div>
+                      <h4>Complete your profile</h4>
+                      <p>Add your role, location, contact details, and a short bio. Save your changes so your portfolio presents an accurate, up-to-date introduction.</p>
+                    </div>
+                  </li>
+                  <li>
+                    <span className="platform-account-journey-number">02</span>
+                    <div>
+                      <h4>Build your portfolio</h4>
+                      <p>Open the portfolio editor to add your work and organize your content. Review and save your changes before publishing.</p>
+                    </div>
+                  </li>
+                  <li>
+                    <span className="platform-account-journey-number">03</span>
+                    <div>
+                      <h4>Publish and share</h4>
+                      <p>When your page is ready, publish it and use Public view to check what visitors will see. Share your public portfolio link with clients, employers, and collaborators.</p>
+                    </div>
+                  </li>
+                  <li>
+                    <span className="platform-account-journey-number">04</span>
+                    <div>
+                      <h4>Manage your plan and tools</h4>
+                      <p>Check Subscriptions for your plan and renewal information, and open Privileges to see what it includes. Your available tools, such as Gallery or support chat, depend on your plan.</p>
+                    </div>
+                  </li>
+                </ol>
+              </section>
+              {portfolioSummary.length > 0 && (
+                <section className="platform-account-overview-portfolios" aria-labelledby="account-portfolios-title">
+                  <div className="platform-account-overview-subheading">
+                    <div>
+                      <p className="platform-account-section-label">Your work</p>
+                      <h3 id="account-portfolios-title">Portfolio spaces</h3>
+                    </div>
+                    <a href="/platform/portfolio">Manage all</a>
+                  </div>
+                  <ul>
+                    {portfolioSummary.slice(0, 3).map((portfolio) => {
+                      const hero = portfolio.sections?.find((section) => section.type === 'hero');
+                      const title = portfolio.title || hero?.data?.title || portfolio.slug || 'Untitled portfolio';
+                      const isPublished = portfolio.status === 'published';
+                      return <li key={portfolio.id}>
+                        <span className="platform-account-overview-portfolio-icon" aria-hidden="true"><i className={`fa-solid ${isPublished ? 'fa-arrow-up-right-from-square' : 'fa-briefcase'}`} /></span>
+                        <span className="platform-account-overview-portfolio-name">{title}</span>
+                        <span className={`platform-account-overview-portfolio-status${isPublished ? ' is-published' : ''}`}>{isPublished ? 'Published' : 'Draft'}</span>
+                        {isPublished && portfolio.slug && <a href={`/u/${encodeURIComponent(portfolio.slug)}`} target="_blank" rel="noreferrer">View</a>}
+                      </li>;
+                    })}
+                  </ul>
+                  {portfolioSummary.length > 3 && <p className="platform-account-overview-more">And {portfolioSummary.length - 3} more portfolio space{portfolioSummary.length - 3 === 1 ? '' : 's'}.</p>}
+                </section>
+              )}
               <div className="platform-account-overview-actions">
                 <a className="platform-account-inline-action" href="/platform/dashboard">Open dashboard</a>
                 <a className="platform-account-inline-action is-secondary" href="/platform/portfolio">Continue building your portfolio</a>
@@ -1018,15 +1145,15 @@ export function PlatformAccountPage() {
               <div className="platform-account-mini-summary">
                 <div>
                   <span>Published page</span>
-                  <strong>{portfolioSummary.some((portfolio) => portfolio.status === 'published') ? 'Live' : 'Draft'}</strong>
+                  <strong>{publishedPortfolios.length ? `${publishedPortfolios.length} live` : portfolioSummary.length ? 'Not published' : 'Not created'}</strong>
                 </div>
                 <div>
                   <span>Portfolio spaces</span>
-                  <strong>{portfolioSummary.length || 0}</strong>
+                  <strong>{portfolioSummary.length}</strong>
                 </div>
                 <div>
-                  <span>Quick actions</span>
-                  <strong>{selectedPlan === 'professional' ? 'Full access' : 'Standard tools'}</strong>
+                  <span>Plan tools</span>
+                  <strong>{activePlan.privileges.length} included</strong>
                 </div>
               </div>
             </aside>
@@ -1037,7 +1164,7 @@ export function PlatformAccountPage() {
 
   const topbarTitle = visibleNavItems.find((item) => item.id === activeTab)?.label || 'Overview';
 
-  return <main className={`platform-account-page${showSidebarMobile ? ' is-sidebar-open' : ''}${sidebarCollapsed ? ' is-sidebar-collapsed' : ''} is-${themeMode}`} style={brightness !== 100 ? { '--page-brightness': brightness / 100 } : undefined}>
+  return <main className={`platform-account-page${sidebarCollapsed ? ' is-sidebar-collapsed' : ''} is-${themeMode}`} style={brightness !== 100 ? { '--page-brightness': brightness / 100 } : undefined}>
     <header className="platform-account-topbar">
       <a className="platform-account-header-brand" href="/" aria-label="FolioSpace home">
         <WebsiteLogo href="/" className="platform-account-header-logo" />
@@ -1050,14 +1177,6 @@ export function PlatformAccountPage() {
           </button>
         )}
         <a className="platform-account-dashboard-link" href={publicPortfolioUrl} target="_blank" rel="noreferrer">Public view</a>
-        <button
-          type="button"
-          className="platform-account-mobile-toggle"
-          aria-label={showSidebarMobile ? 'Close navigation' : 'Toggle navigation'}
-          onClick={() => setShowSidebarMobile((current) => !current)}
-        >
-          <i className={`fa-solid ${showSidebarMobile ? 'fa-xmark' : 'fa-bars'}`} aria-hidden="true" />
-        </button>
       </div>
     </header>
     <div className="platform-account-body">
@@ -1078,10 +1197,7 @@ export function PlatformAccountPage() {
               key={item.id}
               type="button"
               className={activeTab === item.id ? 'is-active' : ''}
-              onClick={() => {
-                setActiveTab(item.id);
-                setShowSidebarMobile(false);
-              }}
+              onClick={() => setActiveTab(item.id)}
               aria-label={item.label}
               aria-pressed={activeTab === item.id}
               title={item.label}
@@ -1101,7 +1217,7 @@ export function PlatformAccountPage() {
         </nav>
       </div>
       <div className="platform-account-logout-wrap">
-        <div className="platform-account-user-card" title={user?.displayName || 'Your account'}>
+        <div className="platform-account-user-card" title={`${user?.displayName || 'Your account'} · ${user?.email || 'demo@foliospace.com'}`}>
           <div className="platform-account-avatar" aria-hidden="true">
             {user?.displayName ? user.displayName.charAt(0).toUpperCase() : 'U'}
           </div>
@@ -1117,7 +1233,6 @@ export function PlatformAccountPage() {
           className="platform-account-logout-trigger"
           onClick={() => setShowLogoutDialog((current) => !current)}
           aria-label="Logout"
-          title="You want to Exit?"
         >
           <i className="fa-solid fa-right-from-bracket" aria-hidden="true" />
         </button>
@@ -1142,16 +1257,16 @@ export function PlatformAccountPage() {
       <div className="platform-account-content-wrap">
         {renderActivePanel()}
       </div>
+      <footer className="platform-account-page-footer">
+        <div className="platform-account-page-footer-copy">
+          <span>© 2026 FolioSpace. All rights reserved.</span>
+        </div>
+      </footer>
     </div>
     </div>
-    <footer className="platform-account-page-footer">
-      <div className="platform-account-page-footer-copy">
-        <span>© 2026 FolioSpace. All rights reserved.</span>
-      </div>
-      <button type="button" className="platform-account-footer-link-button" onClick={() => window.open('https://my-digital-status.onrender.com/', '_blank', 'noopener,noreferrer')}>
-        Powered By <span>KadeTech</span>
-      </button>
-    </footer>
+    <button type="button" className="platform-account-footer-link-button" onClick={() => window.open('https://my-digital-status.onrender.com/', '_blank', 'noopener,noreferrer')}>
+      Powered By <span>KadeTech</span>
+    </button>
   </main>;
 }
 export function PlatformAuthPage() {
