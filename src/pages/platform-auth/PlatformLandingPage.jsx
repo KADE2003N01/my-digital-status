@@ -174,6 +174,7 @@ export function PlatformTemplatesPage() {
                 <li><a href="/platform/templates">Get started</a></li>
                 <li><a href="/platform/help">FAQs &amp; Documentation</a></li>
                 <li><a href="/platform/system-issues">System Based Issues</a></li>
+                <li><a href="/admin/login">Administrator sign in</a></li>
               </ul>
             </div>
           </div>
@@ -324,6 +325,7 @@ export default function PlatformLandingPage() {
                 <li><a href="/platform/templates">Get started</a></li>
                 <li><a href="/platform/help">FAQs &amp; Documentation</a></li>
                 <li><a href="/platform/system-issues">System Based Issues</a></li>
+                <li><a href="/admin/login">Administrator sign in</a></li>
               </ul>
             </div>
           </div>

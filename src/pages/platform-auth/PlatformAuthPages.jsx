@@ -20,6 +20,24 @@ async function postAccountRequest(endpoint, payload) {
   return result;
 }
 
+async function workspaceRequest(path, options = {}) {
+  const response = await apiFetch(`/customer-workspace${path}`, {
+    ...options,
+    credentials: 'include',
+    headers: { ...(options.body && !(options.body instanceof ArrayBuffer) ? { 'Content-Type': 'application/json' } : {}), ...options.headers }
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || 'The request could not be completed.');
+  return result;
+}
+
+async function updateAccountProfile(payload) {
+  const response = await apiFetch('/platform-auth/profile', { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || 'Your profile could not be saved.');
+  return result;
+}
+
 function PlatformAuthLayout({ title, description, children, links, variant }) {
   return <main className={`platform-auth-page${variant ? ` is-${variant}` : ''}`}>
     <header className="platform-auth-header">
@@ -293,29 +311,69 @@ const subscriptionPlans = [
   }
 ];
 
+function getAccountGreeting(name = 'there') {
+  const hour = new Date().getHours();
+  const prefix = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  return { prefix, name };
+}
+
+function getSubscriptionSummary(planId, subscriptionEndsAt) {
+  const baseDays = { free: 30, standard: 182, professional: 182 };
+  const totalDays = baseDays[planId] ?? 182;
+  if (planId === 'free' || !subscriptionEndsAt) {
+    return { totalDays, daysLeft: totalDays, percent: 0, isWarning: false };
+  }
+
+  const endDate = new Date(subscriptionEndsAt);
+  if (Number.isNaN(endDate.getTime())) {
+    return { totalDays, daysLeft: totalDays, percent: 0, isWarning: false };
+  }
+
+  const now = Date.now();
+  const msLeft = Math.max(0, endDate.getTime() - now);
+  const daysLeft = Math.max(0, Math.ceil(msLeft / (1000 * 60 * 60 * 24)));
+  const elapsed = Math.min(100, Math.max(0, ((totalDays - daysLeft) / totalDays) * 100));
+  return {
+    totalDays,
+    daysLeft,
+    percent: Math.round(elapsed),
+    isWarning: elapsed >= 90
+  };
+}
+
 export function PlatformAccountPage() {
   const [user, setUser] = useState(null);
   const [feedback, setFeedback] = useState('');
   const [isError, setIsError] = useState(false);
-  const [toast, setToast] = useState(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('free');
   const [activeTab, setActiveTab] = useState('overview');
   const [showSidebarMobile, setShowSidebarMobile] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
-  const [verificationSent, setVerificationSent] = useState(false);
-  const [verificationCode, setVerificationCode] = useState('');
-  const [emailVerified, setEmailVerified] = useState(false);
   const [themeMode, setThemeMode] = useState('light');
   const [brightness, setBrightness] = useState(100);
   const [selectedLanguage, setSelectedLanguage] = useState('English');
+  const [galleryFiles, setGalleryFiles] = useState([]);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatDraft, setChatDraft] = useState('');
+  const [loadingWorkspace, setLoadingWorkspace] = useState(false);
+  const [sendingChat, setSendingChat] = useState(false);
+  const [portfolioSummary, setPortfolioSummary] = useState([]);
+  const [supportDraft, setSupportDraft] = useState('');
+  const [supportSending, setSupportSending] = useState(false);
   const [profileForm, setProfileForm] = useState({
     displayName: '',
     email: '',
     phone: '',
     location: '',
     role: '',
+    streetAddress: '',
+    city: '',
+    region: '',
+    postalCode: '',
+    country: '',
     website: '',
     bio: ''
   });
@@ -326,15 +384,11 @@ export function PlatformAccountPage() {
   });
 
   useEffect(() => {
-    if (!feedback) return;
-    setToast({ message: feedback, type: isError ? 'error' : 'info' });
-  }, [feedback, isError]);
-
-  useEffect(() => {
-    if (!toast) return;
-    const timer = window.setTimeout(() => setToast(null), 5000);
-    return () => window.clearTimeout(timer);
-  }, [toast]);
+    const allowedTabs = planAccess[selectedPlan] || planAccess.professional;
+    if (!allowedTabs.includes(activeTab)) {
+      setActiveTab('overview');
+    }
+  }, [activeTab, selectedPlan]);
 
   useEffect(() => {
     let active = true;
@@ -345,6 +399,7 @@ export function PlatformAccountPage() {
       phone: '',
       location: '',
       role: 'Portfolio creator',
+      streetAddress: '', city: '', region: '', postalCode: '', country: '',
       website: '',
       bio: ''
     };
@@ -362,6 +417,7 @@ export function PlatformAccountPage() {
               phone: '',
               location: '',
               role: fallbackUser.role,
+              streetAddress: '', city: '', region: '', postalCode: '', country: '',
               website: '',
               bio: ''
             });
@@ -379,11 +435,16 @@ export function PlatformAccountPage() {
             email: nextUser.email || fallbackUser.email,
             phone: nextUser.phone || '',
             location: nextUser.location || '',
-            role: nextUser.role || fallbackUser.role,
+            role: nextUser.professionalRole || '',
+            streetAddress: nextUser.streetAddress || '',
+            city: nextUser.city || '',
+            region: nextUser.region || '',
+            postalCode: nextUser.postalCode || '',
+            country: nextUser.country || '',
             website: nextUser.website || '',
             bio: nextUser.bio || ''
           });
-          if (nextUser.subscriptionPlan) setSelectedPlan(nextUser.subscriptionPlan);
+          setSelectedPlan(nextUser.subscriptionPlan || onboarding?.templateId || 'professional');
         }
       })
       .catch((error) => {
@@ -395,6 +456,7 @@ export function PlatformAccountPage() {
             phone: '',
             location: '',
             role: fallbackUser.role,
+            streetAddress: '', city: '', region: '', postalCode: '', country: '',
             website: '',
             bio: ''
           });
@@ -406,6 +468,11 @@ export function PlatformAccountPage() {
   }, []);
 
   const activePlan = subscriptionPlans.find((plan) => plan.id === selectedPlan) || subscriptionPlans[0];
+  const subscriptionSummary = getSubscriptionSummary(selectedPlan, user?.subscriptionEndsAt);
+  const publicPortfolioUrl = portfolioSummary.find((portfolio) => portfolio.slug)
+    ? `/u/${encodeURIComponent(portfolioSummary.find((portfolio) => portfolio.slug)?.slug)}`
+    : '/platform/portfolio';
+  const greeting = getAccountGreeting(user?.displayName || 'there');
   const [upgradePrompt, setUpgradePrompt] = useState(null);
 
   async function logout() {
@@ -424,12 +491,16 @@ export function PlatformAccountPage() {
     setFeedback('');
     setIsError(false);
     try {
-      saveSpaceOnboarding({
-        displayName: profileForm.displayName.trim(),
-        email: profileForm.email.trim().toLowerCase(),
-        stage: 'space-setup'
+      const result = await updateAccountProfile({
+        displayName: profileForm.displayName.trim(), phone: profileForm.phone.trim(),
+        professionalRole: profileForm.role.trim(), location: profileForm.location.trim(),
+        streetAddress: profileForm.streetAddress.trim(), city: profileForm.city.trim(), region: profileForm.region.trim(),
+        postalCode: profileForm.postalCode.trim(), country: profileForm.country.trim(),
+        website: profileForm.website.trim(), bio: profileForm.bio.trim()
       });
-      setFeedback('Your personal details were saved for this session. Connect the backend API when you are ready to store them permanently.');
+      setUser(result.user);
+      saveSpaceOnboarding({ displayName: result.user.displayName, email: result.user.email, stage: 'space-setup' });
+      setFeedback('Your profile has been saved to your FolioSpace account.');
     } catch (error) {
       setFeedback(error.message || 'Your profile could not be saved.');
       setIsError(true);
@@ -444,9 +515,6 @@ export function PlatformAccountPage() {
     setFeedback('');
     setIsError(false);
     try {
-      if (!emailVerified) {
-        throw new Error('Verify your email before you can update your password.');
-      }
       if (!passwordForm.currentPassword.trim()) {
         throw new Error('Your current password is required.');
       }
@@ -456,8 +524,10 @@ export function PlatformAccountPage() {
       if (passwordForm.newPassword !== passwordForm.confirmPassword) {
         throw new Error('The new password and confirmation do not match.');
       }
-      setFeedback('Password updated successfully. Please sign in again with your new password when the API is connected.');
+      const result = await postAccountRequest('change-password', { currentPassword: passwordForm.currentPassword, password: passwordForm.newPassword });
+      setFeedback(result.message || 'Password updated. Sign in again.');
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      window.setTimeout(() => window.location.replace('/platform/login'), 1200);
     } catch (error) {
       setFeedback(error.message || 'Your password could not be updated.');
       setIsError(true);
@@ -467,38 +537,90 @@ export function PlatformAccountPage() {
   }
 
   function handlePlanSelection(planId) {
-    if (planId !== 'free') {
-      // Payment is not connected yet — the demo grants the plan without checkout,
-      // so selection activates immediately and the plan gates follow the record.
-      setUpgradePrompt(null);
-    }
+    const nextPlan = getSpacePlan(planId);
     setSelectedPlan(planId);
-    saveSpaceOnboarding({ templateId: planId, stage: planId === 'free' ? 'space-setup' : 'payment' });
-    setFeedback(`${getSpacePlan(planId).name} is now selected for your FolioSpace. Review the privileges below and choose the next step.`);
+    setUser((current) => (current ? { ...current, subscriptionPlan: planId } : current));
+    saveSpaceOnboarding({ templateId: planId, stage: 'space-setup' });
+    setUpgradePrompt(null);
+    setFeedback(`${nextPlan.name} is now active for this account session. Live plan assignments are controlled by the FolioSpace owner portal.`);
     setIsError(false);
   }
 
-  function handleSendVerificationEmail() {
-    setVerificationSent(true);
-    setVerificationCode('');
-    setFeedback('A 6-digit verification code has been sent to your email address. Enter it to continue.');
-    setIsError(false);
+  useEffect(() => {
+    let active = true;
+    if (activeTab === 'overview' || activeTab === 'settings') {
+      apiFetch('/portfolios', { credentials: 'include' }).then(async (response) => {
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || 'Could not load your portfolio spaces.');
+        if (active) setPortfolioSummary(result.portfolios || []);
+      }).catch(() => { if (active) setPortfolioSummary([]); });
+    }
+    if (activeTab === 'gallery' || activeTab === 'chat') {
+      setLoadingWorkspace(true);
+      const request = activeTab === 'gallery' ? workspaceRequest('/gallery') : workspaceRequest('/chat');
+      request.then((result) => {
+        if (!active) return;
+        if (activeTab === 'gallery') setGalleryFiles(result.files || []);
+        else setChatMessages(result.messages || []);
+      }).catch((error) => { if (active) { setFeedback(error.message); setIsError(true); } })
+        .finally(() => { if (active) setLoadingWorkspace(false); });
+    }
+    return () => { active = false; };
+  }, [activeTab]);
+
+  async function sendCustomerChat(event) {
+    event.preventDefault();
+    const body = chatDraft.trim();
+    if (!body || sendingChat) return;
+    setSendingChat(true);
+    try {
+      const result = await workspaceRequest('/chat', { method: 'POST', body: JSON.stringify({ body }) });
+      setChatMessages((current) => [...current, result.message]);
+      setChatDraft('');
+    } catch (error) { setFeedback(error.message); setIsError(true); }
+    finally { setSendingChat(false); }
   }
 
-  function handleVerifyEmail() {
-    if (!verificationCode || verificationCode.length !== 6) {
-      setFeedback('Enter the 6-digit code that was sent to your email.');
-      setIsError(true);
-      return;
-    }
-    if (verificationCode !== '123456') {
-      setFeedback('The verification code is incorrect. Use the code sent to your email and try again.');
-      setIsError(true);
-      return;
-    }
-    setEmailVerified(true);
-    setFeedback('Your email has been verified successfully. You can now update your password.');
-    setIsError(false);
+  async function uploadGalleryFile(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const response = await apiFetch(`/customer-workspace/gallery?name=${encodeURIComponent(file.name)}`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': file.type }, body: await file.arrayBuffer()
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Could not upload this file.');
+      setGalleryFiles((current) => [result.file, ...current]);
+      setFeedback('File uploaded to your private FolioSpace gallery.');
+      setIsError(false);
+    } catch (error) { setFeedback(error.message); setIsError(true); }
+    finally { event.target.value = ''; }
+  }
+
+  async function deleteGalleryFile(fileId) {
+    try {
+      await workspaceRequest(`/gallery/${encodeURIComponent(fileId)}`, { method: 'DELETE' });
+      setGalleryFiles((current) => current.filter((file) => file.id !== fileId));
+      setFeedback('File removed from your gallery.');
+      setIsError(false);
+    } catch (error) { setFeedback(error.message); setIsError(true); }
+  }
+
+  async function submitSupportRequest(event) {
+    event.preventDefault();
+    setSupportSending(true);
+    try {
+      const response = await apiFetch('/support-requests', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: user?.displayName || profileForm.displayName, email: user?.email || profileForm.email, category: 'platform_other', message: supportDraft.trim() })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Could not send your support request.');
+      setSupportDraft('');
+      setFeedback(result.message || 'Your support request was sent.');
+      setIsError(false);
+    } catch (error) { setFeedback(error.message); setIsError(true); }
+    finally { setSupportSending(false); }
   }
 
   const navItems = [
@@ -507,9 +629,18 @@ export function PlatformAccountPage() {
     { id: 'security', label: 'Security', icon: 'fa-shield-halved' },
     { id: 'subscription', label: 'Subscriptions', icon: 'fa-crown' },
     { id: 'benefits', label: 'Privileges', icon: 'fa-list-check' },
+    { id: 'chat', label: 'Chat', icon: 'fa-comments' },
     { id: 'settings', label: 'Settings', icon: 'fa-gear' },
-    { id: 'support', label: 'Support', icon: 'fa-circle-question' }
+    { id: 'support', label: 'Support', icon: 'fa-circle-question' },
+    { id: 'gallery', label: 'Gallery', icon: 'fa-images' }
   ];
+
+  const planAccess = {
+    free: ['overview', 'profile', 'security', 'subscription', 'benefits', 'settings', 'support'],
+    standard: ['overview', 'profile', 'security', 'subscription', 'benefits', 'settings', 'support', 'gallery'],
+    professional: ['overview', 'profile', 'security', 'subscription', 'benefits', 'chat', 'settings', 'support', 'gallery']
+  };
+  const visibleNavItems = navItems.filter((item) => (planAccess[selectedPlan] || planAccess.professional).includes(item.id));
 
   const sidebarLinks = [
     { label: 'Dashboard', icon: 'fa-chart-simple', href: '/platform/dashboard' },
@@ -525,6 +656,20 @@ export function PlatformAccountPage() {
   }
 
   const renderActivePanel = () => {
+    if (!((planAccess[selectedPlan] || planAccess.professional).includes(activeTab))) {
+      return <section id="overview" className="platform-account-panel">
+        <div className="platform-account-panel-header">
+          <div>
+            <p className="platform-account-section-label">Locked</p>
+            <h2>{activePlan.name} plan access</h2>
+          </div>
+        </div>
+        <p className="platform-account-intro">This section is not available on your current plan. Upgrade to unlock more FolioSpace tools and controls.</p>
+        <div className="platform-account-overview-actions">
+          <button type="button" className="platform-account-inline-action" onClick={() => setActiveTab('subscription')}>View plans</button>
+        </div>
+      </section>;
+    }
     switch (activeTab) {
       case 'profile':
         return <section id="profile" className="platform-account-panel">
@@ -547,7 +692,7 @@ export function PlatformAccountPage() {
               </label>
               <label>
                 <span>Email address</span>
-                <input type="email" value={profileForm.email} onChange={(event) => setProfileForm((current) => ({ ...current, email: event.target.value }))} placeholder="name@example.com" />
+                <input type="email" value={profileForm.email} readOnly />
               </label>
               <label>
                 <span>Phone number</span>
@@ -556,6 +701,26 @@ export function PlatformAccountPage() {
               <label>
                 <span>Location</span>
                 <input type="text" value={profileForm.location} onChange={(event) => setProfileForm((current) => ({ ...current, location: event.target.value }))} placeholder="Kigali, Rwanda" />
+              </label>
+              <label className="platform-account-field-wide">
+                <span>Street address</span>
+                <input type="text" value={profileForm.streetAddress} onChange={(event) => setProfileForm((current) => ({ ...current, streetAddress: event.target.value }))} placeholder="Street, house or building" />
+              </label>
+              <label>
+                <span>City</span>
+                <input type="text" value={profileForm.city} onChange={(event) => setProfileForm((current) => ({ ...current, city: event.target.value }))} placeholder="City or town" />
+              </label>
+              <label>
+                <span>State / Province</span>
+                <input type="text" value={profileForm.region} onChange={(event) => setProfileForm((current) => ({ ...current, region: event.target.value }))} placeholder="Region" />
+              </label>
+              <label>
+                <span>Postal code</span>
+                <input type="text" value={profileForm.postalCode} onChange={(event) => setProfileForm((current) => ({ ...current, postalCode: event.target.value }))} placeholder="Postal code" />
+              </label>
+              <label>
+                <span>Country</span>
+                <input type="text" value={profileForm.country} onChange={(event) => setProfileForm((current) => ({ ...current, country: event.target.value }))} placeholder="Country" />
               </label>
               <label>
                 <span>Website</span>
@@ -581,23 +746,8 @@ export function PlatformAccountPage() {
               <h2>Protect your account</h2>
             </div>
           </div>
-          <p className="platform-account-intro">We verify your email before any password change is accepted. This confirms you are updating the account tied to your registered address.</p>
-          {!emailVerified && <div className="platform-account-verification-box">
-            <div className="platform-account-verification-header">
-              <i className="fa-solid fa-envelope-circle-check" aria-hidden="true" />
-              <strong>Email verification required</strong>
-            </div>
-            <p>Send a verification code to <span>{profileForm.email || user?.email || 'your email address'}</span> and use it before changing your password.</p>
-            <button type="button" className="platform-account-inline-action" onClick={handleSendVerificationEmail}>
-              {verificationSent ? 'Resend verification email' : 'Send verification email'}
-            </button>
-            {verificationSent && <>
-              <label className="platform-account-code-label" htmlFor="security-verification-code">Verification code</label>
-              <input id="security-verification-code" type="text" inputMode="numeric" maxLength={6} value={verificationCode} onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="Enter 6-digit code" />
-              <button type="button" className="platform-account-inline-action is-secondary" onClick={handleVerifyEmail}>Verify email</button>
-            </>}
-          </div>}
-          {emailVerified && <form className="platform-account-form" onSubmit={handlePasswordSubmit}>
+          <p className="platform-account-intro">Change your password using your current password. For other sensitive account changes, FolioSpace verifies ownership through your registered email.</p>
+          <form className="platform-account-form" onSubmit={handlePasswordSubmit}>
             <div className="platform-account-form-grid">
               <label>
                 <span>Current password</span>
@@ -615,7 +765,7 @@ export function PlatformAccountPage() {
             <div className="platform-account-actions">
               <button type="submit" className="primary" disabled={savingPassword}>{savingPassword ? 'Updating...' : 'Update password'}</button>
             </div>
-          </form>}
+          </form>
         </section>;
       case 'subscription':
         return <section id="subscription" className="platform-account-panel">
@@ -640,7 +790,7 @@ export function PlatformAccountPage() {
                 <ul>
                   {plan.privileges.map((privilege) => <li key={privilege}><i className="fa-solid fa-circle-check" aria-hidden="true" />{privilege}</li>)}
                 </ul>
-                <button type="button" onClick={() => handlePlanSelection(plan.id)}>{selectedPlan === plan.id ? 'Selected' : plan.id === 'free' ? 'Select plan' : `Switch to ${plan.name}`}</button>
+              <button type="button" disabled={selectedPlan === plan.id} onClick={() => handlePlanSelection(plan.id)}>{selectedPlan === plan.id ? 'Current plan' : 'Contact support to change'}</button>
               </article>
             ))}
           </div>
@@ -752,6 +902,35 @@ export function PlatformAccountPage() {
               </div>
             </div>
           </div>
+          <div className="platform-account-publish-settings">
+            <div><p className="platform-account-section-label">Published portfolio</p><h3>Manage public content and links</h3><p>Use the portfolio editor to update the content, links, and sections visitors see on your public page.</p></div>
+            <a className="platform-account-inline-action" href="/platform/portfolio">Open portfolio editor</a>
+            {portfolioSummary.length > 0 && <ul>{portfolioSummary.map((portfolio) => <li key={portfolio.id}><span>{portfolio.title || portfolio.slug}</span><a href={`/u/${encodeURIComponent(portfolio.slug)}`} target="_blank" rel="noreferrer">View public page</a></li>)}</ul>}
+            {!portfolioSummary.length && <small>You have not created a portfolio space yet.</small>}
+          </div>
+        </section>;
+      case 'chat':
+        return <section id="chat" className="platform-account-panel">
+          <div className="platform-account-panel-header"><div><p className="platform-account-section-label">Chat with FolioSpace</p><h2>Customer support room</h2></div></div>
+          <p className="platform-account-intro">Send a message to the platform team. Replies will appear here in your account.</p>
+          <div className="platform-customer-chat-history" aria-live="polite">
+            {loadingWorkspace && <p>Loading conversation…</p>}
+            {!loadingWorkspace && chatMessages.length === 0 && <p>No messages yet. Send a note to start the conversation.</p>}
+            {chatMessages.map((message) => <article key={message.id} className={`platform-customer-chat-message is-${message.senderRole}`}><strong>{message.senderRole === 'customer' ? 'You' : 'FolioSpace support'}</strong><p>{message.body}</p><time>{new Date(message.createdAt).toLocaleString()}</time></article>)}
+          </div>
+          <form className="platform-customer-chat-compose" onSubmit={sendCustomerChat}><label className="sr-only" htmlFor="customer-chat-message">Message</label><textarea id="customer-chat-message" maxLength={3000} required value={chatDraft} onChange={(event) => setChatDraft(event.target.value)} placeholder="Write a message to the FolioSpace team" /><button className="primary" disabled={sendingChat || !chatDraft.trim()}>{sendingChat ? 'Sending…' : 'Send message'}</button></form>
+        </section>;
+      case 'gallery':
+        return <section id="gallery" className="platform-account-panel">
+          <div className="platform-account-panel-header"><div><p className="platform-account-section-label">Private files</p><h2>Your gallery</h2></div></div>
+          <p className="platform-account-intro">Upload images and PDFs here for your portfolio work. Files stay private until you add them to a published portfolio.</p>
+          <label className="platform-gallery-upload"><i className="fa-solid fa-cloud-arrow-up" aria-hidden="true" /><span>Choose an image or PDF (up to 20 MB)</span><input type="file" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf" onChange={uploadGalleryFile} /></label>
+          {loadingWorkspace && <p>Loading your files…</p>}
+          <div className="platform-gallery-grid">{galleryFiles.map((file) => <article key={file.id} className="platform-gallery-card">
+            {file.mimeType.startsWith('image/') ? <a href={`/api/customer-workspace/gallery/${encodeURIComponent(file.id)}`} target="_blank" rel="noreferrer"><img src={`/api/customer-workspace/gallery/${encodeURIComponent(file.id)}`} alt={file.name} /></a> : <a className="platform-gallery-pdf" href={`/api/customer-workspace/gallery/${encodeURIComponent(file.id)}`} target="_blank" rel="noreferrer"><i className="fa-solid fa-file-pdf" /> PDF</a>}
+            <div><strong title={file.name}>{file.name}</strong><small>{(file.size / 1024 / 1024).toFixed(2)} MB</small><button type="button" onClick={() => deleteGalleryFile(file.id)}>Remove</button></div>
+          </article>)}</div>
+          {!loadingWorkspace && galleryFiles.length === 0 && <p>Your gallery is empty.</p>}
         </section>;
       case 'support':
         return <section id="support" className="platform-account-panel">
@@ -767,15 +946,16 @@ export function PlatformAccountPage() {
               <i className="fa-solid fa-message" aria-hidden="true" />
               <strong>Ask support</strong>
               <span>Send a note and we will respond by email.</span>
-              <button type="button" className="platform-account-inline-action is-secondary">Message support</button>
+              <button type="button" className="platform-account-inline-action is-secondary" onClick={() => setActiveTab('chat')}>Open support chat</button>
             </div>
             <div className="platform-account-support-card">
               <i className="fa-solid fa-circle-question" aria-hidden="true" />
               <strong>Knowledge base</strong>
               <span>Browse setup guides and account help topics.</span>
-              <button type="button" className="platform-account-inline-action is-secondary">Open help centre</button>
+              <a className="platform-account-inline-action is-secondary" href="/platform/help">Open help centre</a>
             </div>
           </div>
+          <form className="platform-account-support-form" onSubmit={submitSupportRequest}><label htmlFor="account-support-message">Describe the issue</label><textarea id="account-support-message" minLength={10} maxLength={3000} required value={supportDraft} onChange={(event) => setSupportDraft(event.target.value)} placeholder="Tell us what you need help with" /><button type="submit" className="primary" disabled={supportSending}>{supportSending ? 'Sending…' : 'Send support request'}</button></form>
         </section>;
       case 'overview':
       default:
@@ -783,35 +963,81 @@ export function PlatformAccountPage() {
           <div className="platform-account-panel-header">
             <div>
               <p className="platform-account-section-label">Overview</p>
-              <h2>{user?.displayName || 'Welcome'}</h2>
+              <h2>
+                <span className="platform-account-greeting-prefix">{greeting.prefix}</span>
+                <span className="platform-account-greeting-name">{greeting.name}</span>
+              </h2>
             </div>
             <span className="platform-account-plan-badge">{activePlan.name} plan</span>
           </div>
           <p className="platform-account-intro">Your account dashboard gives you a quick snapshot of your current plan, portfolio readiness, and the tools available to manage your space.</p>
-          <div className="platform-account-summary-grid">
-            <div className="platform-account-stat-card">
-              <span>Current plan</span>
-              <strong>{activePlan.name}</strong>
-              <small>{activePlan.price}</small>
+          <div className="platform-account-overview-layout">
+            <div className="platform-account-overview-main">
+              <div className="platform-account-summary-grid">
+                <div className="platform-account-stat-card">
+                  <span>Current plan</span>
+                  <strong>{activePlan.name}</strong>
+                  <small>{activePlan.price}</small>
+                </div>
+                <div className="platform-account-stat-card">
+                  <span>Portfolio status</span>
+                  <strong>{portfolioSummary.length ? `${portfolioSummary.length} space${portfolioSummary.length === 1 ? '' : 's'}` : 'Not set up yet'}</strong>
+                  <small>{portfolioSummary.some((portfolio) => portfolio.status === 'published') ? 'At least one portfolio is published' : 'Create and publish a portfolio from your dashboard'}</small>
+                </div>
+                <div className="platform-account-stat-card">
+                  <span>Access</span>
+                  <strong>Portfolio editor</strong>
+                  <small>Manage your profile and public pages</small>
+                </div>
+              </div>
+              <div className="platform-account-overview-actions">
+                <a className="platform-account-inline-action" href="/platform/dashboard">Open dashboard</a>
+                <a className="platform-account-inline-action is-secondary" href="/platform/portfolio">Continue building your portfolio</a>
+              </div>
             </div>
-            <div className="platform-account-stat-card">
-              <span>Portfolio status</span>
-              <strong>Ready to publish</strong>
-              <small>Use your dashboard to update content</small>
-            </div>
-            <div className="platform-account-stat-card">
-              <span>Access</span>
-              <strong>Portfolio editor</strong>
-              <small>Manage your profile and public pages</small>
-            </div>
+            <aside className="platform-account-overview-side">
+              <div className={`platform-account-progress-card${subscriptionSummary.isWarning ? ' is-warning' : ''}`}>
+                <div
+                  className="platform-account-progress-ring"
+                  style={{
+                    background: `conic-gradient(${subscriptionSummary.isWarning ? '#ef4444' : '#5ea9f7'} ${Math.min(subscriptionSummary.percent, 100)}%, #e3edf7 0)`
+                  }}
+                >
+                  <div className="platform-account-progress-ring-inner">
+                    <strong className={subscriptionSummary.isWarning ? 'is-warning' : ''}>{subscriptionSummary.daysLeft}</strong>
+                    <span>days left</span>
+                  </div>
+                </div>
+                <div className="platform-account-progress-copy">
+                  <span>Subscription status</span>
+                  <strong>{selectedPlan === 'free' ? 'Free access' : `${activePlan.name} active`}</strong>
+                  <small>{selectedPlan === 'free' ? 'Stay on the free plan and upgrade when ready.' : `Renewal window: ${subscriptionSummary.daysLeft} day${subscriptionSummary.daysLeft === 1 ? '' : 's'} remaining`}</small>
+                </div>
+                <button type="button" className="platform-account-renew-button" onClick={() => setActiveTab('subscription')}>Subscription Renewal</button>
+              </div>
+              <div className="platform-account-mini-summary">
+                <div>
+                  <span>Published page</span>
+                  <strong>{portfolioSummary.some((portfolio) => portfolio.status === 'published') ? 'Live' : 'Draft'}</strong>
+                </div>
+                <div>
+                  <span>Portfolio spaces</span>
+                  <strong>{portfolioSummary.length || 0}</strong>
+                </div>
+                <div>
+                  <span>Quick actions</span>
+                  <strong>{selectedPlan === 'professional' ? 'Full access' : 'Standard tools'}</strong>
+                </div>
+              </div>
+            </aside>
           </div>
         </section>;
     }
   };
 
-  const topbarTitle = navItems.find((item) => item.id === activeTab)?.label || 'Overview';
+  const topbarTitle = visibleNavItems.find((item) => item.id === activeTab)?.label || 'Overview';
 
-  return <main className={`platform-account-page${showSidebarMobile ? ' is-sidebar-open' : ''} is-${themeMode}`} style={brightness !== 100 ? { '--page-brightness': brightness / 100 } : undefined}>
+  return <main className={`platform-account-page${showSidebarMobile ? ' is-sidebar-open' : ''}${sidebarCollapsed ? ' is-sidebar-collapsed' : ''} is-${themeMode}`} style={brightness !== 100 ? { '--page-brightness': brightness / 100 } : undefined}>
     <header className="platform-account-topbar">
       <a className="platform-account-header-brand" href="/" aria-label="FolioSpace home">
         <WebsiteLogo href="/" className="platform-account-header-logo" />
@@ -823,7 +1049,7 @@ export function PlatformAccountPage() {
             {savingProfile ? 'Saving...' : 'Save profile'}
           </button>
         )}
-        <a className="platform-account-dashboard-link" href="/platform/dashboard">Dashboard</a>
+        <a className="platform-account-dashboard-link" href={publicPortfolioUrl} target="_blank" rel="noreferrer">Public view</a>
         <button
           type="button"
           className="platform-account-mobile-toggle"
@@ -835,10 +1061,19 @@ export function PlatformAccountPage() {
       </div>
     </header>
     <div className="platform-account-body">
-    <aside className="platform-account-sidebar" aria-label="Account navigation">
+    <aside className={`platform-account-sidebar${sidebarCollapsed ? ' is-collapsed' : ''}`} aria-label="Account navigation">
+      <button
+        type="button"
+        className="platform-account-sidebar-toggle"
+        onClick={() => setSidebarCollapsed((current) => !current)}
+        aria-label={sidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'}
+        title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        <i className={`fa-solid ${sidebarCollapsed ? 'fa-angle-double-right' : 'fa-angle-double-left'}`} aria-hidden="true" />
+      </button>
       <div className="platform-account-nav-scroll">
         <nav className="platform-account-nav">
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <button
               key={item.id}
               type="button"
@@ -847,31 +1082,35 @@ export function PlatformAccountPage() {
                 setActiveTab(item.id);
                 setShowSidebarMobile(false);
               }}
+              aria-label={item.label}
               aria-pressed={activeTab === item.id}
+              title={item.label}
             >
               <i className={`fa-solid ${item.icon}`} aria-hidden="true" />
-              {item.label}
+              {!sidebarCollapsed && <span>{item.label}</span>}
             </button>
           ))}
         </nav>
         <nav className="platform-account-nav platform-account-nav-links" aria-label="More pages">
           {sidebarLinks.map((item) => (
-            <a key={item.label} className="platform-account-nav-link" href={item.href}>
+            <a key={item.label} className="platform-account-nav-link" href={item.href} title={item.label} aria-label={item.label}>
               <i className={`fa-solid ${item.icon}`} aria-hidden="true" />
-              {item.label}
+              {!sidebarCollapsed && <span>{item.label}</span>}
             </a>
           ))}
         </nav>
       </div>
       <div className="platform-account-logout-wrap">
-        <div className="platform-account-user-card">
+        <div className="platform-account-user-card" title={user?.displayName || 'Your account'}>
           <div className="platform-account-avatar" aria-hidden="true">
             {user?.displayName ? user.displayName.charAt(0).toUpperCase() : 'U'}
           </div>
-          <div className="platform-account-user-meta">
-            <strong>{user?.displayName || 'Your account'}</strong>
-            <span>{user?.email || 'demo@foliospace.com'}</span>
-          </div>
+          {!sidebarCollapsed && (
+            <div className="platform-account-user-meta">
+              <strong>{user?.displayName || 'Your account'}</strong>
+              <span>{user?.email || 'demo@foliospace.com'}</span>
+            </div>
+          )}
         </div>
         <button
           type="button"
@@ -902,16 +1141,17 @@ export function PlatformAccountPage() {
     <div className="platform-account-main">
       <div className="platform-account-content-wrap">
         {renderActivePanel()}
-        <StatusMessage message={feedback} error={isError} />
       </div>
-      {toast && (
-        <div className={`platform-account-toast ${toast.type === 'error' ? 'is-error' : ''}`} aria-live="polite">
-          <span>{toast.message}</span>
-          <button type="button" aria-label="Dismiss notification" onClick={() => setToast(null)}>×</button>
-        </div>
-      )}
     </div>
     </div>
+    <footer className="platform-account-page-footer">
+      <div className="platform-account-page-footer-copy">
+        <span>© 2026 FolioSpace. All rights reserved.</span>
+      </div>
+      <button type="button" className="platform-account-footer-link-button" onClick={() => window.open('https://my-digital-status.onrender.com/', '_blank', 'noopener,noreferrer')}>
+        Powered By <span>KadeTech</span>
+      </button>
+    </footer>
   </main>;
 }
 export function PlatformAuthPage() {

@@ -1567,3 +1567,23 @@
   .owner-messages-page .owner-message-history { padding-right: 12px; padding-left: 12px; }
   .owner-messages-page .owner-message-bubble { max-width: min(50%, 760px); }
 }
+.owner-customer-chat-layout { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); min-height: 460px; overflow: hidden; border: 1px solid #dce5e7; border-radius: 14px; }
+.owner-customer-chat-list { display: flex; flex-direction: column; max-height: 620px; overflow: auto; border-right: 1px solid #dce5e7; }
+.owner-customer-chat-list > button { position: relative; display: grid; gap: 4px; padding: 13px; border: 0; border-bottom: 1px solid #e7edef; background: #fff; color: #22313a; text-align: left; cursor: pointer; }
+.owner-customer-chat-list > button.is-selected { background: #edf7f0; }
+.owner-customer-chat-list span, .owner-customer-chat-list small { overflow: hidden; color: #687780; text-overflow: ellipsis; white-space: nowrap; }
+.owner-customer-chat-list b { position: absolute; top: 12px; right: 12px; display: grid; width: 21px; height: 21px; place-items: center; border-radius: 50%; background: #16834a; color: white; font-size: 11px; }
+.owner-customer-chat-conversation { display: flex; min-width: 0; flex-direction: column; padding: 14px; }
+.owner-customer-chat-conversation > header { display: grid; gap: 3px; padding-bottom: 10px; border-bottom: 1px solid #e7edef; }
+.owner-customer-chat-conversation > header span { color: #687780; }
+.owner-customer-chat-messages { display: flex; flex: 1; flex-direction: column; gap: 10px; min-height: 300px; max-height: 480px; overflow: auto; padding: 14px 0; }
+.owner-customer-chat-messages article { max-width: 82%; padding: 10px 12px; border-radius: 12px; background: #f0f4f5; }
+.owner-customer-chat-messages article.is-platform_owner { align-self: flex-end; background: #e4f4e9; }
+.owner-customer-chat-messages p { margin: 5px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.owner-customer-chat-messages time { color: #687780; font-size: 11px; }
+.owner-customer-chat-conversation form { display: grid; gap: 8px; }
+.owner-customer-chat-conversation textarea { min-height: 76px; padding: 10px; border: 1px solid #d4e0e4; border-radius: 10px; font: inherit; resize: vertical; }
+.owner-customer-chat-conversation form button { justify-self: end; padding: 9px 16px; border: 0; border-radius: 8px; background: #16834a; color: #fff; font-weight: 700; cursor: pointer; }
+.owner-customer-chat-conversation form button:disabled { opacity: .5; cursor: not-allowed; }
+.owner-customer-chat-error { color: #b42318; }
+@media (max-width: 720px) { .owner-customer-chat-layout { grid-template-columns: 1fr; } .owner-customer-chat-list { max-height: 220px; border-right: 0; border-bottom: 1px solid #dce5e7; } }

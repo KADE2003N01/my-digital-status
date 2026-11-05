@@ -366,6 +366,7 @@
   --panel-bg: rgba(255, 255, 255, 0.86);
   --panel-border: rgba(148, 163, 184, 0.2);
   --soft-card: #f7faff;
+  --sidebar-width: 82px;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -377,6 +378,10 @@
   color: #17243b;
   margin: 0;
   padding: 0;
+}
+
+.platform-account-page:not(.is-sidebar-collapsed) {
+  --sidebar-width: 220px;
 }
 
 .platform-account-page.is-soft-blue {
@@ -414,6 +419,62 @@
   background: var(--sidebar-bg);
   color: #e2ebff;
   overflow: hidden;
+  transition: flex-basis 0.2s ease, width 0.2s ease, padding 0.2s ease;
+}
+
+.platform-account-sidebar.is-collapsed {
+  flex-basis: 82px;
+  width: 82px;
+  min-width: 82px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.platform-account-sidebar-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-end;
+  width: 30px;
+  height: 30px;
+  margin-bottom: 8px;
+  border: 1px solid rgba(143, 198, 255, 0.22);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #edf6ff;
+  font-size: 0.76rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.platform-account-sidebar-toggle:hover {
+  background: rgba(143, 198, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.platform-account-sidebar.is-collapsed .platform-account-nav button,
+.platform-account-sidebar.is-collapsed .platform-account-nav-link,
+.platform-account-sidebar.is-collapsed .platform-account-user-card,
+.platform-account-sidebar.is-collapsed .platform-account-logout-trigger {
+  justify-content: center;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.platform-account-sidebar.is-collapsed .platform-account-nav button span,
+.platform-account-sidebar.is-collapsed .platform-account-nav-link span,
+.platform-account-sidebar.is-collapsed .platform-account-user-card .platform-account-user-meta,
+.platform-account-sidebar.is-collapsed .platform-account-logout-trigger::before {
+  display: none;
+}
+
+.platform-account-sidebar.is-collapsed .platform-account-user-card {
+  padding: 6px 0;
+}
+
+.platform-account-sidebar.is-collapsed .platform-account-logout-wrap {
+  gap: 6px;
 }
 
 .platform-account-nav-scroll {
@@ -697,7 +758,7 @@
 .platform-account-content-wrap {
   flex: 1;
   min-height: 0;
-  padding: 20px 24px 36px;
+  padding: 20px 24px 78px;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: thin;
@@ -992,6 +1053,7 @@
   gap: 9px;
   padding: 6px 4px;
   min-width: 0;
+  overflow: hidden;
 }
 
 .platform-account-user-meta {
@@ -1042,6 +1104,67 @@
   overflow: visible;
   text-align: left;
   transition: background 0.18s ease, color 0.18s ease;
+}
+
+.platform-account-page-footer {
+  position: fixed;
+  right: 18px;
+  bottom: 0;
+  left: calc(var(--sidebar-width) + 0px);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 54px;
+  padding: 8px 18px 8px 18px;
+  border-radius: 0;
+  background: rgba(6, 24, 39, 0.96);
+  color: #edf5ff;
+  font-size: clamp(0.9rem, 1vw, 1.08rem);
+  font-weight: 700;
+  box-shadow: none;
+  margin-bottom: 0;
+}
+
+.platform-account-page-footer-copy {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+}
+
+.platform-account-page-footer-copy span {
+  opacity: 1;
+  color: #edf5ff;
+}
+
+.platform-account-footer-link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #1d3557;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.08);
+  text-decoration: none;
+}
+
+.platform-account-footer-link-button span {
+  margin-left: 4px;
+  color: #0b5ed7;
+  text-decoration: none;
+}
+
+.platform-account-footer-link-button:hover {
+  filter: brightness(1.04);
 }
 
 .platform-account-logout-trigger i {
@@ -1187,21 +1310,39 @@
 }
 
 .platform-account-panel-header h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
   margin: 0;
   color: #18253d;
   font-size: clamp(1.2rem, 2vw, 1.7rem);
+  letter-spacing: -0.04em;
+}
+
+.platform-account-greeting-prefix {
+  color: #223b68;
+  font-size: clamp(1.1rem, 2vw, 1.55rem);
+  font-weight: 700;
+}
+
+.platform-account-greeting-name {
+  color: #1d4ed8;
+  font-size: clamp(1.7rem, 3vw, 2.45rem);
+  font-weight: 900;
 }
 
 .platform-account-plan-badge {
   display: inline-flex;
   align-items: center;
-  height: 30px;
-  padding: 0 12px;
+  min-height: 34px;
+  padding: 0 14px;
   border-radius: 999px;
-  background: rgba(49, 92, 232, 0.1);
-  color: #1748c6;
+  background: rgba(34, 197, 94, 0.12);
+  color: #0c8f4d;
   font-size: 0.74rem;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
 .platform-account-summary-grid {
@@ -1214,9 +1355,10 @@
   display: grid;
   gap: 6px;
   padding: 18px 16px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 14px;
-  background: #f7faff;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fafdff 0%, #f2f7ff 100%);
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.04);
 }
 
 .platform-account-stat-card span,
@@ -1226,7 +1368,8 @@
 
 .platform-account-stat-card strong {
   color: #17243b;
-  font-size: 1.05rem;
+  font-size: 1.08rem;
+  font-weight: 800;
 }
 
 .platform-account-form {
@@ -1577,4 +1720,195 @@
   .platform-auth-back-button {
     padding: 8px 10px;
   }
+}
+.platform-account-field-wide { grid-column: 1 / -1; }
+.platform-account-publish-settings { margin-top: 24px; padding: 20px; border: 1px solid var(--panel-border, #dce5f0); border-radius: 16px; background: var(--panel-muted, #f7faff); }
+.platform-account-publish-settings h3 { margin: 4px 0 8px; }
+.platform-account-publish-settings p { margin: 0 0 14px; color: var(--muted-text, #64748b); }
+.platform-account-publish-settings ul { display: grid; gap: 8px; padding: 0; list-style: none; }
+.platform-account-publish-settings li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--panel-border, #dce5f0); }
+.platform-account-overview-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.platform-customer-chat-history { display: flex; flex-direction: column; gap: 12px; max-height: 440px; overflow: auto; padding: 16px; border: 1px solid #dce5f0; border-radius: 14px; background: #f8fbff; }
+.platform-customer-chat-message { max-width: min(80%, 640px); padding: 12px 14px; border-radius: 14px; background: #fff; box-shadow: 0 2px 8px #102a4310; }
+.platform-customer-chat-message.is-customer { align-self: flex-end; background: #e8f1ff; }
+.platform-customer-chat-message p { margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.platform-customer-chat-message time { color: #64748b; font-size: 12px; }
+.platform-customer-chat-compose, .platform-account-support-form { display: grid; gap: 10px; margin-top: 14px; }
+.platform-customer-chat-compose textarea, .platform-account-support-form textarea { width: 100%; min-height: 90px; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; font: inherit; resize: vertical; }
+.platform-gallery-upload { display: flex; align-items: center; gap: 12px; padding: 18px; border: 1px dashed #91a8c7; border-radius: 14px; cursor: pointer; }
+.platform-gallery-upload input { margin-left: auto; max-width: 240px; }
+.platform-gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; margin-top: 18px; }
+.platform-gallery-card { overflow: hidden; border: 1px solid #dce5f0; border-radius: 12px; background: #fff; }
+.platform-gallery-card img { display: block; width: 100%; height: 150px; object-fit: cover; }
+.platform-gallery-pdf { display: grid; height: 150px; place-content: center; gap: 8px; color: #b42318; font-size: 18px; }
+.platform-gallery-card > div { display: grid; gap: 4px; padding: 10px; }
+.platform-gallery-card strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.platform-gallery-card small { color: #64748b; }
+.platform-gallery-card button { justify-self: start; border: 0; padding: 4px 0; background: transparent; color: #b42318; cursor: pointer; }
+.platform-account-support-form { padding-top: 18px; border-top: 1px solid #dce5f0; }
+.platform-account-overview-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.75fr) minmax(260px, 0.85fr);
+  gap: 18px;
+}
+
+.platform-account-overview-main {
+  display: grid;
+  gap: 14px;
+}
+
+.platform-account-overview-side {
+  display: grid;
+  gap: 18px;
+}
+
+.platform-account-progress-card {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 20px 18px 18px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #f7fafc 0%, #edf5ff 100%);
+  box-shadow: 0 18px 40px rgba(30, 64, 175, 0.08);
+}
+
+.platform-account-progress-card.is-warning {
+  border-color: rgba(239, 68, 68, 0.28);
+  background: linear-gradient(180deg, #fffafa 0%, #fff1f2 100%);
+  box-shadow: 0 18px 40px rgba(239, 68, 68, 0.08);
+}
+
+.platform-account-progress-ring {
+  display: grid;
+  place-items: center;
+  width: min(190px, 100%);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(120, 137, 160, 0.12);
+}
+
+.platform-account-progress-ring-inner {
+  display: grid;
+  place-items: center;
+  width: 72%;
+  height: 72%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.15);
+  color: #2f81e2;
+  text-align: center;
+}
+
+.platform-account-progress-ring-inner strong {
+  display: block;
+  font-size: clamp(2.2rem, 3vw, 3.2rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.06em;
+}
+
+.platform-account-progress-ring-inner strong.is-warning {
+  color: #dc3f3f;
+}
+
+.platform-account-progress-ring-inner span {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.platform-account-progress-copy {
+  display: grid;
+  gap: 4px;
+  text-align: center;
+}
+
+.platform-account-progress-copy span {
+  color: #5e6f8d;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.platform-account-progress-copy strong {
+  color: #0f8b4a;
+  font-size: 1.09rem;
+  font-weight: 900;
+}
+
+.platform-account-progress-copy small {
+  color: #586c88;
+  line-height: 1.5;
+}
+
+.platform-account-renew-button {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #1d4ed8 0%, #173f9d 100%);
+  color: #fff;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 14px 26px rgba(29, 78, 216, 0.25);
+}
+
+.platform-account-renew-button:hover {
+  filter: brightness(1.04);
+}
+
+.platform-account-mini-summary {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  background: #f8fbff;
+}
+
+.platform-account-mini-summary > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.platform-account-mini-summary span {
+  color: #5d7088;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.platform-account-mini-summary strong {
+  color: #1d3d70;
+  font-size: 0.94rem;
+}
+
+@media (max-width: 960px) {
+  .platform-account-overview-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .platform-account-field-wide { grid-column: auto; }
+  .platform-gallery-upload { align-items: flex-start; flex-direction: column; }
+  .platform-gallery-upload input { margin-left: 0; max-width: 100%; }
+  .platform-account-publish-settings li { align-items: flex-start; flex-direction: column; }
+  .platform-account-progress-ring { width: min(170px, 72vw); }
 }

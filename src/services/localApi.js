@@ -11,9 +11,48 @@ const LOCAL_ADMIN = {
 const LOCAL_MEMBER = {
   id: 1,
   displayName: 'FolioSpace Member',
-  email: 'member@example.com'
+  email: 'member@example.com',
+  role: 'customer',
+  professionalRole: 'Portfolio creator',
+  phone: '',
+  location: '',
+  streetAddress: '',
+  city: '',
+  region: '',
+  postalCode: '',
+  country: '',
+  website: '',
+  bio: '',
+  subscriptionPlan: 'professional',
+  subscriptionState: 'active',
+  subscriptionEndsAt: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString(),
+  password: 'Password123!'
 };
 const now = () => new Date().toISOString();
+
+function normalizePlatformUser(user = {}) {
+  const base = { ...LOCAL_MEMBER, ...user };
+  return {
+    id: base.id ?? LOCAL_MEMBER.id,
+    email: base.email || LOCAL_MEMBER.email,
+    displayName: base.displayName || LOCAL_MEMBER.displayName,
+    role: base.role || LOCAL_MEMBER.role,
+    professionalRole: base.professionalRole || LOCAL_MEMBER.professionalRole,
+    phone: base.phone || '',
+    location: base.location || '',
+    streetAddress: base.streetAddress || '',
+    city: base.city || '',
+    region: base.region || '',
+    postalCode: base.postalCode || '',
+    country: base.country || '',
+    website: base.website || '',
+    bio: base.bio || '',
+    subscriptionPlan: base.subscriptionPlan || LOCAL_MEMBER.subscriptionPlan,
+    subscriptionState: base.subscriptionState || LOCAL_MEMBER.subscriptionState,
+    subscriptionEndsAt: base.subscriptionEndsAt || LOCAL_MEMBER.subscriptionEndsAt,
+    password: base.password || LOCAL_MEMBER.password
+  };
+}
 
 function createInitialData() {
   return {
@@ -157,7 +196,7 @@ function getAdminUser() {
 }
 
 function getPortfolioUser() {
-  return { ...data.platformUser };
+  return normalizePlatformUser(data.platformUser);
 }
 
 function responseForPortfolio(portfolio, includePrivate = false) {
@@ -173,23 +212,59 @@ function responseForPortfolio(portfolio, includePrivate = false) {
 function handlePlatformAuth(path, method, body) {
   if (path === '/platform-auth/me') return jsonResponse({ user: getPortfolioUser() });
   if (path === '/platform-auth/signup') {
-    data.platformUser = { ...LOCAL_MEMBER, displayName: body.displayName || LOCAL_MEMBER.displayName, email: body.email || LOCAL_MEMBER.email };
+    const nextUser = normalizePlatformUser({
+      ...LOCAL_MEMBER,
+      displayName: body.displayName || LOCAL_MEMBER.displayName,
+      email: body.email || LOCAL_MEMBER.email,
+      password: body.password || LOCAL_MEMBER.password,
+      subscriptionPlan: body.templateId || LOCAL_MEMBER.subscriptionPlan,
+      role: 'customer',
+      subscriptionEndsAt: new Date(Date.now() + 182 * 24 * 60 * 60 * 1000).toISOString()
+    });
+    data.platformUser = nextUser;
     persist();
-    return jsonResponse({ message: 'Demo account created locally. No email was sent.' });
+    return jsonResponse({ message: 'Demo account created locally. No email was sent.', user: nextUser, onboarding: { templateId: nextUser.subscriptionPlan } });
   }
   if (path === '/platform-auth/login') {
-    data.platformUser = { ...LOCAL_MEMBER, email: body.email || LOCAL_MEMBER.email };
+    const nextUser = normalizePlatformUser({
+      ...data.platformUser,
+      ...LOCAL_MEMBER,
+      email: body.email || data.platformUser?.email || LOCAL_MEMBER.email,
+      displayName: data.platformUser?.displayName || LOCAL_MEMBER.displayName,
+      role: 'customer',
+      password: data.platformUser?.password || LOCAL_MEMBER.password,
+      subscriptionEndsAt: data.platformUser?.subscriptionEndsAt || new Date(Date.now() + 182 * 24 * 60 * 60 * 1000).toISOString()
+    });
+    data.platformUser = nextUser;
     persist();
-    return jsonResponse({ user: getPortfolioUser(), message: 'Signed in to the local demo.' });
+    return jsonResponse({ user: nextUser, message: 'Signed in to the local demo.' });
   }
   if (path === '/platform-auth/logout') return jsonResponse({ message: 'Signed out of the local demo.' });
   if (path === '/platform-auth/verify-email') return jsonResponse({ message: 'Email verified in the local demo.' });
   if (path === '/platform-auth/forgot-password') return jsonResponse({ message: 'Demo reset link ready. No email was sent.' });
   if (path === '/platform-auth/reset-password') return jsonResponse({ message: 'Demo password updated locally.' });
-  if (path === '/platform-auth/account' && method === 'PUT') {
-    data.platformUser = { ...data.platformUser, ...body };
+  if (path === '/platform-auth/profile' && method === 'PUT') {
+    data.platformUser = normalizePlatformUser({ ...data.platformUser, ...body, displayName: body.displayName || data.platformUser?.displayName || LOCAL_MEMBER.displayName });
     persist();
     return jsonResponse({ user: getPortfolioUser() });
+  }
+  if (path === '/platform-auth/account' && method === 'PUT') {
+    data.platformUser = normalizePlatformUser({ ...data.platformUser, ...body, displayName: body.displayName || data.platformUser?.displayName || LOCAL_MEMBER.displayName });
+    persist();
+    return jsonResponse({ user: getPortfolioUser() });
+  }
+  if (path === '/platform-auth/change-password' && method === 'POST') {
+    const currentPassword = typeof body.currentPassword === 'string' ? body.currentPassword : '';
+    const nextPassword = typeof body.password === 'string' ? body.password : '';
+    if (!currentPassword || !nextPassword) {
+      return jsonResponse({ error: 'Current password and a new password are required.' }, 400);
+    }
+    if (data.platformUser?.password && currentPassword !== data.platformUser.password) {
+      return jsonResponse({ error: 'Current password is incorrect.' }, 400);
+    }
+    data.platformUser = normalizePlatformUser({ ...data.platformUser, password: nextPassword });
+    persist();
+    return jsonResponse({ success: true, message: 'Password updated in the local demo.' });
   }
   return jsonResponse({ error: 'This action is not available in the frontend demo.' }, 404);
 }
