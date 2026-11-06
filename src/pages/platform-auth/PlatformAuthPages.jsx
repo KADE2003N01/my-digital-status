@@ -5,8 +5,11 @@ import PlatformFooter from '../../components/PlatformFooter.jsx';
 import WebsiteLogo from '../../components/WebsiteLogo.jsx';
 import WhatsAppContact from '../../components/WhatsAppContact.jsx';
 import { formatSpacePrice, getSpacePlan, planPrivileges, readSpaceOnboarding, saveSpaceOnboarding, shouldBypassSubscriptionGate } from '../../services/spacePlans.js';
+import { DEFAULT_ACCOUNT_PAGE_ACCESS } from '../../services/accountPageAccess.js';
 import { getStoredSessionToken, storeSessionToken } from '../../services/adminSession.js';
 import UpgradeModal from '../../components/UpgradeModal.jsx';
+import ExpandableCell from '../../components/ExpandableCell.jsx';
+import CustomerSupportChat from './CustomerSupportChat.jsx';
 import './PlatformAuthPages.css';
 
 async function postAccountRequest(endpoint, payload) {
@@ -382,7 +385,12 @@ export function PlatformAccountPage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('free');
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(() => {
+    const section = new URLSearchParams(window.location.search).get('section');
+    if (section === 'request') return 'support-chat';
+    return ['overview', 'profile', 'security', 'subscription', 'benefits', 'chat', 'settings', 'support', 'support-chat', 'gallery'].includes(section)
+      ? section : 'overview';
+  });
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [themeMode, setThemeMode] = useState('light');
   const [brightness, setBrightness] = useState(100);
@@ -393,8 +401,8 @@ export function PlatformAccountPage() {
   const [loadingWorkspace, setLoadingWorkspace] = useState(false);
   const [sendingChat, setSendingChat] = useState(false);
   const [portfolioSummary, setPortfolioSummary] = useState([]);
-  const [supportDraft, setSupportDraft] = useState('');
-  const [supportSending, setSupportSending] = useState(false);
+  const [supportRequests, setSupportRequests] = useState([]);
+  const [loadingSupportRequests, setLoadingSupportRequests] = useState(false);
   const [profileForm, setProfileForm] = useState({
     displayName: '',
     email: '',
@@ -415,12 +423,22 @@ export function PlatformAccountPage() {
     confirmPassword: ''
   });
 
+  const allowedTabs = user?.id
+    ? user.accountPages || DEFAULT_ACCOUNT_PAGE_ACCESS[selectedPlan] || DEFAULT_ACCOUNT_PAGE_ACCESS.professional
+    : DEFAULT_ACCOUNT_PAGE_ACCESS[selectedPlan] || DEFAULT_ACCOUNT_PAGE_ACCESS.professional;
+
   useEffect(() => {
-    const allowedTabs = planAccess[selectedPlan] || planAccess.professional;
-    if (!allowedTabs.includes(activeTab)) {
-      setActiveTab('overview');
+    const url = new URL(window.location.href);
+    const section = url.searchParams.get('section');
+    if (activeTab === 'support-chat' && section !== 'request') {
+      url.searchParams.set('section', 'request');
+    } else if (activeTab !== 'support-chat' && ['request', 'support-chat'].includes(section)) {
+      url.searchParams.set('section', activeTab);
+    } else {
+      return;
     }
-  }, [activeTab, selectedPlan]);
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+  }, [activeTab]);
 
   useEffect(() => {
     let active = true;
@@ -609,7 +627,7 @@ export function PlatformAccountPage() {
         if (active) setPortfolioSummary(result.portfolios || []);
       }).catch(() => { if (active) setPortfolioSummary([]); });
     }
-    if (activeTab === 'gallery' || activeTab === 'chat') {
+    if ((activeTab === 'gallery' || activeTab === 'chat') && user?.id) {
       setLoadingWorkspace(true);
       const request = activeTab === 'gallery' ? workspaceRequest('/gallery') : workspaceRequest('/chat');
       request.then((result) => {
@@ -618,9 +636,31 @@ export function PlatformAccountPage() {
         else setChatMessages(result.messages || []);
       }).catch((error) => { if (active) { setFeedback(error.message); setIsError(true); } })
         .finally(() => { if (active) setLoadingWorkspace(false); });
+    } else {
+      setLoadingWorkspace(false);
     }
     return () => { active = false; };
-  }, [activeTab]);
+  }, [activeTab, user?.id]);
+
+  useEffect(() => {
+    let active = true;
+    if (activeTab !== 'support' || !user?.id) {
+      setSupportRequests([]);
+      setLoadingSupportRequests(false);
+      return () => { active = false; };
+    }
+
+    setLoadingSupportRequests(true);
+    apiFetch('/support-requests', { credentials: 'include' })
+      .then(async (response) => {
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || 'Could not load your support request history.');
+        if (active) setSupportRequests(result.requests || []);
+      })
+      .catch((error) => { if (active) { setFeedback(error.message); setIsError(true); } })
+      .finally(() => { if (active) setLoadingSupportRequests(false); });
+    return () => { active = false; };
+  }, [activeTab, user?.id]);
 
   async function sendCustomerChat(event) {
     event.preventDefault();
@@ -628,7 +668,10 @@ export function PlatformAccountPage() {
     if (!body || sendingChat) return;
     setSendingChat(true);
     try {
-      const result = await workspaceRequest('/chat', { method: 'POST', body: JSON.stringify({ body }) });
+      const result = await workspaceRequest(activeTab === 'support-chat' ? '/support-chat' : '/chat', {
+        method: 'POST',
+        body: JSON.stringify({ body })
+      });
       setChatMessages((current) => [...current, result.message]);
       setChatDraft('');
     } catch (error) { setFeedback(error.message); setIsError(true); }
@@ -660,23 +703,6 @@ export function PlatformAccountPage() {
     } catch (error) { setFeedback(error.message); setIsError(true); }
   }
 
-  async function submitSupportRequest(event) {
-    event.preventDefault();
-    setSupportSending(true);
-    try {
-      const response = await apiFetch('/support-requests', {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: user?.displayName || profileForm.displayName, email: user?.email || profileForm.email, category: 'platform_other', message: supportDraft.trim() })
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || 'Could not send your support request.');
-      setSupportDraft('');
-      setFeedback(result.message || 'Your support request was sent.');
-      setIsError(false);
-    } catch (error) { setFeedback(error.message); setIsError(true); }
-    finally { setSupportSending(false); }
-  }
-
   const navItems = [
     { id: 'overview', label: 'Overview', icon: 'fa-house' },
     { id: 'profile', label: 'Profile', icon: 'fa-user' },
@@ -686,15 +712,16 @@ export function PlatformAccountPage() {
     { id: 'chat', label: 'Chat', icon: 'fa-comments' },
     { id: 'settings', label: 'Settings', icon: 'fa-gear' },
     { id: 'support', label: 'Support', icon: 'fa-circle-question' },
+    { id: 'support-chat', label: 'Request', icon: 'fa-headset' },
     { id: 'gallery', label: 'Gallery', icon: 'fa-images' }
   ];
 
-  const planAccess = {
-    free: ['overview', 'profile', 'security', 'subscription', 'benefits', 'settings', 'support'],
-    standard: ['overview', 'profile', 'security', 'subscription', 'benefits', 'settings', 'support', 'gallery'],
-    professional: ['overview', 'profile', 'security', 'subscription', 'benefits', 'chat', 'settings', 'support', 'gallery']
+  const visibleNavItems = navItems.filter((item) => allowedTabs.includes(item.id));
+  const supportRequestCounts = {
+    total: supportRequests.length,
+    open: supportRequests.filter((request) => request.status === 'open').length,
+    resolved: supportRequests.filter((request) => request.status === 'resolved').length
   };
-  const visibleNavItems = navItems.filter((item) => (planAccess[selectedPlan] || planAccess.professional).includes(item.id));
 
   const sidebarLinks = [
     { label: 'Dashboard', icon: 'fa-chart-simple', href: '/platform/dashboard' },
@@ -710,17 +737,20 @@ export function PlatformAccountPage() {
   }
 
   const renderActivePanel = () => {
-    if (!((planAccess[selectedPlan] || planAccess.professional).includes(activeTab))) {
-      return <section id="overview" className="platform-account-panel">
+    if (!allowedTabs.includes(activeTab)) {
+      return <section id={activeTab} className="platform-account-panel">
         <div className="platform-account-panel-header">
           <div>
-            <p className="platform-account-section-label">Locked</p>
-            <h2>{activePlan.name} plan access</h2>
+            <p className="platform-account-section-label">{activeTab === 'support-chat' ? 'Request' : 'Locked'}</p>
+            <h2>{activeTab === 'support-chat' ? 'Request access' : `${activePlan.name} plan access`}</h2>
           </div>
         </div>
-        <p className="platform-account-intro">This section is not available on your current plan. Upgrade to unlock more FolioSpace tools and controls.</p>
+        <p className="platform-account-intro">{activeTab === 'support-chat'
+          ? 'The Request chat room is not enabled for this account. Access depends on your subscription and the platform owner’s page-access settings.'
+          : 'This section is not available on your current plan. Upgrade to unlock more FolioSpace tools and controls.'}</p>
         <div className="platform-account-overview-actions">
-          <button type="button" className="platform-account-inline-action" onClick={() => setActiveTab('subscription')}>View plans</button>
+          {allowedTabs.includes('subscription') && <button type="button" className="platform-account-inline-action" onClick={() => setActiveTab('subscription')}>View plans</button>}
+          {activeTab === 'support-chat' && allowedTabs.includes('support') && <button type="button" className="platform-account-inline-action" onClick={() => setActiveTab('support')}>View support options</button>}
         </div>
       </section>;
     }
@@ -965,7 +995,7 @@ export function PlatformAccountPage() {
         </section>;
       case 'chat':
         return <section id="chat" className="platform-account-panel">
-          <div className="platform-account-panel-header"><div><p className="platform-account-section-label">Chat with FolioSpace</p><h2>Customer support room</h2></div></div>
+          <div className="platform-account-panel-header"><div><p className="platform-account-section-label">General FolioSpace chat</p><h2>FolioSpace chat</h2></div></div>
           <p className="platform-account-intro">Send a message to the platform team. Replies will appear here in your account.</p>
           <div className="platform-customer-chat-history" aria-live="polite">
             {loadingWorkspace && <p>Loading conversation…</p>}
@@ -974,6 +1004,8 @@ export function PlatformAccountPage() {
           </div>
           <form className="platform-customer-chat-compose" onSubmit={sendCustomerChat}><label className="sr-only" htmlFor="customer-chat-message">Message</label><textarea id="customer-chat-message" maxLength={3000} required value={chatDraft} onChange={(event) => setChatDraft(event.target.value)} placeholder="Write a message to the FolioSpace team" /><button className="primary" disabled={sendingChat || !chatDraft.trim()}>{sendingChat ? 'Sending…' : 'Send message'}</button></form>
         </section>;
+      case 'support-chat':
+        return <CustomerSupportChat user={user} />;
       case 'gallery':
         return <section id="gallery" className="platform-account-panel">
           <div className="platform-account-panel-header"><div><p className="platform-account-section-label">Private files</p><h2>Your gallery</h2></div></div>
@@ -994,13 +1026,46 @@ export function PlatformAccountPage() {
               <h2>Need help?</h2>
             </div>
           </div>
-          <p className="platform-account-intro">Contact our support team whenever you need help with billing, settings, account access, or portfolio publishing.</p>
-          <div className="platform-account-support-grid">
+          <p className="platform-account-intro">Review your support request activity and continue an enabled support conversation. Only requests actually submitted to support are included here.</p>
+          <section className="platform-account-support-history" aria-label="Support requests and activity">
+            <div className="platform-account-support-stats" aria-label="Support request totals">
+              <article><span>Total requests</span><strong>{supportRequestCounts.total}</strong></article>
+              <article><span>Open</span><strong>{supportRequestCounts.open}</strong></article>
+              <article><span>Resolved</span><strong>{supportRequestCounts.resolved}</strong></article>
+            </div>
+            <div className="platform-account-support-history-heading">
+              <h3>Your support requests</h3>
+              <span>{loadingSupportRequests ? 'Refreshing…' : `${supportRequests.length} ${supportRequests.length === 1 ? 'request' : 'requests'}`}</span>
+            </div>
+            <div className="platform-account-support-table-scroll" role="region" aria-label="Scrollable support request history" tabIndex="0">
+              <table className="platform-account-support-table">
+                <thead><tr><th>Request</th><th>Type</th><th>Description</th><th>Status</th><th>Submitted</th><th>Latest response</th></tr></thead>
+                <tbody>
+                  {supportRequests.map((request) => {
+                    const latestResponse = request.responses?.[request.responses.length - 1];
+                    return <tr key={request.id}>
+                      <td><strong>#{request.id}</strong></td>
+                      <td className="platform-account-support-category">{String(request.category || '').replace(/^platform_/, '').replaceAll('_', ' ')}</td>
+                      <td><ExpandableCell className="platform-account-support-description">{request.message}</ExpandableCell></td>
+                      <td><span className={`platform-account-support-status is-${request.status}`}>{request.status === 'resolved' ? 'Resolved' : 'Open'}</span></td>
+                      <td><time dateTime={request.createdAt}>{new Date(request.createdAt).toLocaleDateString()}</time></td>
+                      <td>{latestResponse ? <div className="platform-account-support-reply"><ExpandableCell className="platform-account-support-description">{latestResponse.body}</ExpandableCell><small>{latestResponse.responderName} · {new Date(latestResponse.sentAt).toLocaleDateString()}</small></div> : <span className="platform-account-support-awaiting">Awaiting a reply</span>}</td>
+                    </tr>;
+                  })}
+                  {!loadingSupportRequests && supportRequests.length === 0 && <tr><td className="platform-account-support-empty" colSpan="6">You have not submitted any support requests yet.</td></tr>}
+                  {loadingSupportRequests && supportRequests.length === 0 && <tr><td className="platform-account-support-empty" colSpan="6">Loading your requests…</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </section>
+          <div className="platform-account-support-actions">
             <div className="platform-account-support-card">
               <i className="fa-solid fa-message" aria-hidden="true" />
               <strong>Ask support</strong>
-              <span>Send a note and we will respond by email.</span>
-              <button type="button" className="platform-account-inline-action is-secondary" onClick={() => setActiveTab('chat')}>Open support chat</button>
+              <span>{allowedTabs.includes('support-chat') ? 'Open a dedicated Request room and chat with the FolioSpace support team.' : 'Request chat is not currently included in your subscription plan.'}</span>
+              {allowedTabs.includes('support-chat')
+                ? <a className="platform-account-inline-action is-secondary" href="/platform/account?section=request">Open Request</a>
+                : <span className="platform-account-support-locked">Ask the platform owner about Request chat access.</span>}
             </div>
             <div className="platform-account-support-card">
               <i className="fa-solid fa-circle-question" aria-hidden="true" />
@@ -1009,7 +1074,6 @@ export function PlatformAccountPage() {
               <a className="platform-account-inline-action is-secondary" href="/platform/help">Open help centre</a>
             </div>
           </div>
-          <form className="platform-account-support-form" onSubmit={submitSupportRequest}><label htmlFor="account-support-message">Describe the issue</label><textarea id="account-support-message" minLength={10} maxLength={3000} required value={supportDraft} onChange={(event) => setSupportDraft(event.target.value)} placeholder="Tell us what you need help with" /><button type="submit" className="primary" disabled={supportSending}>{supportSending ? 'Sending…' : 'Send support request'}</button></form>
         </section>;
       case 'overview':
       default:
