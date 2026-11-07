@@ -112,6 +112,7 @@ function AppNavigation() {
   const page = sharedPortfolio
     ? { component: 'publicPortfolio', title: 'Professional Portfolio | FolioSpace', bodyClassName: 'portfolio-public-page' }
     : getPageForPath(location.pathname);
+  const pageKey = page?.component === 'platformAccount' ? page.component : location.pathname;
 
   useEffect(() => {
     if (legacyPath) {
@@ -145,9 +146,9 @@ function AppNavigation() {
 
   if (legacyPath) return null;
   const Page = pageComponents[page?.component || 'homepage'];
-  return <LanguageProvider key={location.pathname}>
+  return <LanguageProvider key={pageKey}>
     <>
-      <Page key={location.pathname} />
+      <Page key={pageKey} />
     </>
   </LanguageProvider>;
 }

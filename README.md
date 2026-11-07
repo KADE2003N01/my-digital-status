@@ -51,3 +51,15 @@ and `/u/*` paths while keeping the requested URL. If the host does not consume
 the generated `_redirects` file, add an equivalent catch-all rewrite in its
 dashboard. Keep the existing `/api/*` rewrite to the backend or configure
 `VITE_PORTFOLIO_API_BASE_URL` at build time.
+
+For the current Render static site, add a Rewrite rule with source `/*` and
+destination `/index.html` if direct links such as
+`/platform/account/overview` return 404.
+
+The production frontend tries the configured or default backend URL before a
+same-origin `/api` rewrite. Set `VITE_PORTFOLIO_API_BASE_URL` to the backend's
+`https://.../api` URL in the frontend host's build environment when using a
+different backend. On the backend host, set `FRONTEND_URL` to the exact deployed
+frontend origin (scheme and hostname only, no path or trailing slash) so
+credentialed sign-in and signup requests pass CORS. Local `.env` files are not
+copied to either hosting provider.

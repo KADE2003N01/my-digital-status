@@ -390,7 +390,7 @@ export default function CustomerSupportChat() {
     <div className="platform-support-chat-frame">
       <aside className="platform-support-chat-sidebar" aria-label="Support conversations">
         <div className="platform-support-chat-sidebar-top">
-          <a href="/platform/account?section=support" aria-label="Back to support requests"><i className="fas fa-arrow-left" /></a>
+          <a href="/platform/account/support" aria-label="Back to support requests"><i className="fas fa-arrow-left" /></a>
           <strong>Messages</strong>
         </div>
         <label className="platform-support-conversation-search"><i className="fas fa-magnifying-glass" aria-hidden="true" /><input type="search" value={conversationSearch} onChange={(event) => setConversationSearch(event.target.value)} placeholder="Find a conversation" aria-label="Search support conversations" /></label>

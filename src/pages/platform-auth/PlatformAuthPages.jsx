@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../services/api.js';
 import PlatformFooter from '../../components/PlatformFooter.jsx';
 import WebsiteLogo from '../../components/WebsiteLogo.jsx';
 import WhatsAppContact from '../../components/WhatsAppContact.jsx';
 import { formatSpacePrice, getSpacePlan, planPrivileges, readSpaceOnboarding, saveSpaceOnboarding, shouldBypassSubscriptionGate } from '../../services/spacePlans.js';
-import { DEFAULT_ACCOUNT_PAGE_ACCESS } from '../../services/accountPageAccess.js';
+import { ACCOUNT_PAGE_OPTIONS, DEFAULT_ACCOUNT_PAGE_ACCESS } from '../../services/accountPageAccess.js';
 import { getStoredSessionToken, storeSessionToken } from '../../services/adminSession.js';
 import UpgradeModal from '../../components/UpgradeModal.jsx';
 import ExpandableCell from '../../components/ExpandableCell.jsx';
@@ -169,7 +169,7 @@ function PlatformAuthForm({ type }) {
         }
 
         await postAccountRequest('login', { email, password });
-        navigate('/platform/account');
+        navigate('/platform/account/overview');
       } else if (isForgot) {
         const result = await postAccountRequest('forgot-password', { email });
         setFeedback(result.message);
@@ -378,6 +378,8 @@ function getSubscriptionSummary(planId, subscriptionEndsAt) {
 }
 
 export function PlatformAccountPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [feedback, setFeedback] = useState('');
   const [isError, setIsError] = useState(false);
@@ -385,12 +387,12 @@ export function PlatformAccountPage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('free');
-  const [activeTab, setActiveTab] = useState(() => {
-    const section = new URLSearchParams(window.location.search).get('section');
-    if (section === 'request') return 'support-chat';
-    return ['overview', 'profile', 'security', 'subscription', 'benefits', 'chat', 'settings', 'support', 'support-chat', 'gallery'].includes(section)
-      ? section : 'overview';
-  });
+  const accountSection = location.pathname.match(/^\/platform\/account\/([^/]+)\/?$/)?.[1];
+  const querySection = new URLSearchParams(location.search).get('section');
+  const requestedSection = querySection === 'request' ? 'support-chat' : querySection;
+  const activeTab = accountSection
+    || (ACCOUNT_PAGE_OPTIONS.some(({ id }) => id === requestedSection) ? requestedSection : 'overview');
+  const setActiveTab = (section) => navigate(`/platform/account/${section}`);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [themeMode, setThemeMode] = useState('light');
   const [brightness, setBrightness] = useState(100);
@@ -428,17 +430,16 @@ export function PlatformAccountPage() {
     : DEFAULT_ACCOUNT_PAGE_ACCESS[selectedPlan] || DEFAULT_ACCOUNT_PAGE_ACCESS.professional;
 
   useEffect(() => {
-    const url = new URL(window.location.href);
-    const section = url.searchParams.get('section');
-    if (activeTab === 'support-chat' && section !== 'request') {
-      url.searchParams.set('section', 'request');
-    } else if (activeTab !== 'support-chat' && ['request', 'support-chat'].includes(section)) {
-      url.searchParams.set('section', activeTab);
-    } else {
-      return;
-    }
-    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
-  }, [activeTab]);
+    if (accountSection) return;
+    const search = new URLSearchParams(location.search);
+    search.delete('section');
+    const query = search.toString();
+    navigate({
+      pathname: `/platform/account/${activeTab}`,
+      search: query ? `?${query}` : '',
+      hash: location.hash
+    }, { replace: true });
+  }, [accountSection, activeTab, location.hash, location.search, navigate]);
 
   useEffect(() => {
     let active = true;
@@ -1064,7 +1065,7 @@ export function PlatformAccountPage() {
               <strong>Ask support</strong>
               <span>{allowedTabs.includes('support-chat') ? 'Open a dedicated Request room and chat with the FolioSpace support team.' : 'Request chat is not currently included in your subscription plan.'}</span>
               {allowedTabs.includes('support-chat')
-                ? <a className="platform-account-inline-action is-secondary" href="/platform/account?section=request">Open Request</a>
+                ? <a className="platform-account-inline-action is-secondary" href="/platform/account/support-chat">Open Request</a>
                 : <span className="platform-account-support-locked">Ask the platform owner about Request chat access.</span>}
             </div>
             <div className="platform-account-support-card">

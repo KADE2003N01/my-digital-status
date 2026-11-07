@@ -25,7 +25,7 @@ function PageFrame({ title, children }) {
       <WebsiteLogo className="digital-status-brand" />
       <nav aria-label="Account navigation">
         <a href="/platform/dashboard">Dashboard</a>
-        <a href="/platform/account">Account</a>
+        <a href="/platform/account/overview">Account</a>
       </nav>
     </header>
     <section className="digital-status-content">
@@ -259,7 +259,7 @@ export function PlatformDashboardPage() {
             </div>
             <a href={`/platform/portfolio?id=${portfolio.id}`}>Edit</a>
           </li>)}</ul>}
-        <a className="digital-status-back-link" href="/platform/account">Manage account</a>
+        <a className="digital-status-back-link" href="/platform/account/overview">Manage account</a>
       </section>
     </div>
   </PageFrame>;

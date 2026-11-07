@@ -41,7 +41,7 @@ export default function UpgradeModal({ open, title, feature, onClose }) {
         ))}
       </ul>
       <footer className="upgrade-modal-actions">
-        <a className="upgrade-modal-cta" href="/platform/account?tab=subscription">Upgrade to {plan.name}</a>
+        <a className="upgrade-modal-cta" href="/platform/account/subscription">Upgrade to {plan.name}</a>
         <button type="button" className="upgrade-modal-dismiss" onClick={onClose}>Not now</button>
       </footer>
     </section>

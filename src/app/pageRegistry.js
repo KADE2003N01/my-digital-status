@@ -1,3 +1,5 @@
+import { ACCOUNT_PAGE_OPTIONS } from '../services/accountPageAccess.js';
+
 export const pageRegistry = [
   { path: '/', aliases: ['/index.html'], component: 'platformLanding', title: 'FolioSpace | Your Work. Your Space. Your Future.', bodyClassName: '' },
   { path: '/portfolio-home', aliases: ['/portfolio-home.html'], component: 'homepage', title: 'David KWIZERA | Portfolio', bodyClassName: '' },
@@ -46,14 +48,24 @@ for (const page of pageRegistry) {
 export function getPageForPath(pathname) {
   const normalizedPath = pathname !== '/' ? pathname.replace(/\/+$/, '') : pathname;
   const exactPage = paths.get(normalizedPath);
-  if (exactPage || !normalizedPath.endsWith('.html')) return exactPage || null;
+  if (exactPage) return exactPage;
+  const accountSectionMatch = normalizedPath.match(/^\/platform\/account\/([^/]+)$/);
+  if (accountSectionMatch && ACCOUNT_PAGE_OPTIONS.some(({ id }) => id === accountSectionMatch[1])) {
+    return paths.get('/platform/account');
+  }
+  if (!normalizedPath.endsWith('.html')) return null;
   const filename = normalizedPath.slice(normalizedPath.lastIndexOf('/') + 1);
   return paths.get(`/${filename}`) || null;
 }
 
 export function getLegacyPagePath(pathname) {
   const page = getPageForPath(pathname);
-  return page && pathname !== page.path ? page.path : null;
+  if (!page) return null;
+  const normalizedPath = pathname !== '/' ? pathname.replace(/\/+$/, '') : pathname;
+  if (normalizedPath.startsWith('/platform/account/')) {
+    return pathname === normalizedPath ? null : normalizedPath;
+  }
+  return pathname !== page.path ? page.path : null;
 }
 
 export const defaultPage = pageRegistry[0];

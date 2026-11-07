@@ -12,10 +12,13 @@ const localApiUrl = `http://${localApiHost}:${localApiPort}/api`;
 const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
 const defaultApiUrls = isLocalHost
   ? ['/api', localApiUrl]
-  : ['/api', liveApiUrl];
+  : [liveApiUrl, '/api'];
+const configuredApiUrls = !isLocalHost && configuredApiUrl && !/^https?:\/\//i.test(configuredApiUrl)
+  ? [liveApiUrl, configuredApiUrl]
+  : [configuredApiUrl];
 
 export const API_BASE_URLS = [...new Set([
-  configuredApiUrl,
+  ...configuredApiUrls,
   ...defaultApiUrls
 ].filter((url) => typeof url === 'string' && url.trim())
   .map((url) => url.trim().replace(/\/+$/, '')))];
@@ -77,11 +80,12 @@ export async function apiFetch(path, options) {
       // Document preview endpoints return PDFs; the other app endpoints return JSON.
       if (contentType.toLowerCase().includes('application/pdf')) return response;
 
-      // A Render static site without its /api rewrite can return the frontend
-      // HTML shell with status 200. Treat that as a proxy miss and try the
-      // backend URL; keep normal JSON auth errors (including 401) authoritative.
+      // Static hosts may return the frontend shell for /api when no proxy is
+      // configured; treat that as a miss while keeping JSON auth errors authoritative.
       if (!contentType.toLowerCase().includes('application/json')) {
-        lastError = new Error(`The API route at ${baseUrl} returned a non-JSON response.`);
+        if (!(lastError instanceof TypeError)) {
+          lastError = new Error(`The API route at ${baseUrl} returned a non-JSON response.`);
+        }
         continue;
       }
       return response;
@@ -93,6 +97,10 @@ export async function apiFetch(path, options) {
 
   if (isLocalHost && !configuredApiUrl && lastError instanceof TypeError) {
     throw new Error(`Cannot connect to the local backend at ${localApiUrl}. Start it from kade-status-backend with npm start.`);
+  }
+
+  if (!isLocalHost && lastError instanceof TypeError) {
+    throw new Error('Unable to reach the FolioSpace API. Confirm the production API URL and allow this frontend origin in the backend FRONTEND_URL setting.', { cause: lastError });
   }
 
   throw lastError || new Error('The API did not return a JSON response.');

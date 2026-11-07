@@ -35,4 +35,15 @@ describe('page registry', () => {
     expect(getPageForPath('/platform/subscribe')?.component).toBe('platformSubscribe');
     expect(getPageForPath('/platform/space-setup')?.component).toBe('platformSpaceSetup');
   });
+
+  it('resolves account sections as bookmarkable routes without redirecting them', () => {
+    for (const section of ['overview', 'profile', 'security', 'subscription', 'benefits', 'chat', 'settings', 'support', 'support-chat', 'gallery']) {
+      const path = `/platform/account/${section}`;
+      expect(getPageForPath(path)?.component).toBe('platformAccount');
+      expect(getLegacyPagePath(path)).toBeNull();
+    }
+
+    expect(getLegacyPagePath('/platform/account/profile/')).toBe('/platform/account/profile');
+    expect(getPageForPath('/platform/account/not-a-section')).toBeNull();
+  });
 });
